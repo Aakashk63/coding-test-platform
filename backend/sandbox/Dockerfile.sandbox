@@ -1,0 +1,26 @@
+# Production Sandbox Docker Image for CodeGuard AI
+# Packages Java Compiler (JDK) and Python 3 runner.
+
+FROM debian:bookworm-slim
+
+# Avoid prompts during apt installs
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies, Python 3, and OpenJDK Java Compiler & Runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-minimal \
+    openjdk-17-jdk-headless \
+    ca-certificates-java \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set sandbox directory
+WORKDIR /sandbox
+
+# User security: Create sandboxed non-root execution user
+RUN useradd -u 1001 -m -s /bin/bash sandboxuser
+USER sandboxuser
+
+# Keep container idle if started standalone (otherwise run script handles it)
+CMD ["python3", "-c", "print('CodeGuard AI Sandbox Engine Ready')"]
