@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { API_URL } from '../config';
-import { FileCode, Calendar, Copy, Check, Eye, Trash2, ArrowRight, Play, BarChart2 } from 'lucide-react';
+import { FileCode, Calendar, Copy, Check, Eye, Trash2, ArrowRight, Play, BarChart2, Edit2 } from 'lucide-react';
 
 
 export default function ManageTests() {
@@ -35,6 +35,31 @@ export default function ManageTests() {
     navigator.clipboard.writeText(examUrl);
     setCopiedId(testId);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDeleteTest = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this test? This will also remove all associated candidate submissions and violation logs.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/tests/admin/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (res.ok) {
+        setTests(tests.filter((t) => t._id !== id));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete test');
+      }
+    } catch (error) {
+      console.error('Delete test error:', error);
+      alert('Error connecting to the server to delete the test');
+    }
   };
 
   return (
@@ -130,6 +155,26 @@ export default function ManageTests() {
                   >
                     <Play size={14} />
                     <span>Live Monitor</span>
+                  </button>
+
+                  {/* Edit Control */}
+                  <button
+                    onClick={() => navigate(`/admin/create-test?edit=${test._id}`)}
+                    className="p-2.5 bg-slate-900 border border-slate-800 hover:border-slate-750 text-slate-400 hover:text-slate-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                    title="Edit test parameters and duration"
+                  >
+                    <Edit2 size={14} />
+                    <span>Edit</span>
+                  </button>
+
+                  {/* Delete Control */}
+                  <button
+                    onClick={() => handleDeleteTest(test._id)}
+                    className="p-2.5 bg-rose-950/20 border border-rose-900/30 hover:bg-rose-950/40 text-rose-400 hover:text-rose-350 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                    title="Delete assessment"
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete</span>
                   </button>
 
                   {/* Reports Control */}

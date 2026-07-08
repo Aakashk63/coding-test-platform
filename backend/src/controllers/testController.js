@@ -230,3 +230,64 @@ export const getDashboardStats = async (req, res) => {
     res.status(500).json({ error: 'Server error retrieving dashboard statistics' });
   }
 };
+
+/**
+ * Admin: Delete a test and its related database entries
+ */
+export const deleteTest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const test = await Test.findOneAndDelete({ _id: id, createdBy: req.user.id });
+
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found or unauthorized' });
+    }
+
+    // Clean up related submissions and proctoring logs
+    await Submission.deleteMany({ test: id });
+    await ProctoringLog.deleteMany({ test: id });
+
+    res.status(200).json({ message: 'Test deleted successfully' });
+  } catch (error) {
+    console.error('Delete test error:', error);
+    res.status(500).json({ error: 'Server error deleting test' });
+  }
+};
+
+/**
+ * Admin: Update an existing test schedule and parameters
+ */
+export const updateTest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, duration, startTime, endTime, allowedLanguages, questions } = req.body;
+
+    if (!title || !duration || !startTime || !endTime) {
+      return res.status(400).json({ error: 'Title, duration, startTime, and endTime are required' });
+    }
+
+    const test = await Test.findOneAndUpdate(
+      { _id: id, createdBy: req.user.id },
+      {
+        title,
+        description,
+        duration: Number(duration),
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        allowedLanguages: allowedLanguages || ['python', 'java'],
+        questions: questions || [],
+      },
+      { new: true }
+    );
+
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found or unauthorized' });
+    }
+
+    res.status(200).json({ message: 'Test updated successfully', test });
+  } catch (error) {
+    console.error('Update test error:', error);
+    res.status(500).json({ error: 'Server error updating test' });
+  }
+};
+

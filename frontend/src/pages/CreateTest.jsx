@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { API_URL } from '../config';
 import { Plus, Trash2, Code, FileText, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function CreateTest() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const editId = queryParams.get('edit');
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(60);
@@ -17,6 +21,56 @@ export default function CreateTest() {
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Fetch test details if in edit mode
+  React.useEffect(() => {
+    if (!editId) return;
+
+    const fetchTestToEdit = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/tests/admin/${editId}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to load test details.');
+        }
+
+        setTitle(data.title);
+        setDescription(data.description || '');
+        setDuration(data.duration);
+        
+        // Format ISO dates back to YYYY-MM-DDTHH:MM for local picker
+        if (data.startTime) {
+          const localStart = new Date(data.startTime);
+          const offsetMs = localStart.getTimezoneOffset() * 60 * 1000;
+          const adjustedStart = new Date(localStart.getTime() - offsetMs);
+          setStartTime(adjustedStart.toISOString().slice(0, 16));
+        }
+        if (data.endTime) {
+          const localEnd = new Date(data.endTime);
+          const offsetMs = localEnd.getTimezoneOffset() * 60 * 1000;
+          const adjustedEnd = new Date(localEnd.getTime() - offsetMs);
+          setEndTime(adjustedEnd.toISOString().slice(0, 16));
+        }
+
+        setAllowedLanguages(data.allowedLanguages || ['python', 'java']);
+        setQuestions(data.questions || []);
+        if (data.questions && data.questions.length > 0) {
+          setActiveQuestionIdx(0);
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTestToEdit();
+  }, [editId]);
 
   // Defaults starter templates for quick entry
   const defaultPythonStarter = `def solution(nums, target):\n    # Write your logic here\n    pass`;
@@ -109,8 +163,11 @@ export default function CreateTest() {
     setError('');
 
     try {
-      const res = await fetch(`${API_URL}/tests`, {
-        method: 'POST',
+      const url = editId ? `${API_URL}/tests/admin/${editId}` : `${API_URL}/tests`;
+      const method = editId ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -119,8 +176,8 @@ export default function CreateTest() {
           title,
           description,
           duration,
-          startTime,
-          endTime,
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date(endTime).toISOString(),
           allowedLanguages,
           questions,
         }),
@@ -260,7 +317,7 @@ export default function CreateTest() {
                 className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-700 text-white font-bold rounded-lg py-3 transition shadow-lg text-sm flex items-center justify-center gap-2"
               >
                 <CheckCircle2 size={16} />
-                <span>{loading ? 'Creating Assessment...' : 'Publish Assessment'}</span>
+                <span>{loading ? 'Saving Changes...' : (editId ? 'Save Changes' : 'Publish Assessment')}</span>
               </button>
             </div>
           </div>
