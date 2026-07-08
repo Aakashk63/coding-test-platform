@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import io from 'socket.io-client';
 import AdminLayout from '../components/AdminLayout';
+import { API_URL, SOCKET_URL } from '../config';
 import { 
   Activity, 
   Video, 
@@ -29,7 +30,7 @@ export default function LiveMonitoring() {
   useEffect(() => {
     const fetchTests = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/tests/admin', {
+        const res = await fetch(`${API_URL}/tests/admin`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
         const data = await res.json();
@@ -55,7 +56,7 @@ export default function LiveMonitoring() {
     setEventLogs([]);
 
     // Initialize socket connection
-    const socket = io('http://localhost:5000');
+    const socket = io(SOCKET_URL);
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -192,7 +193,7 @@ export default function LiveMonitoring() {
   const fetchUserProfile = async (userId) => {
     // Helper to query user details
     try {
-      const res = await fetch(`http://localhost:5000/api/reports/test/${selectedTestId}/html`, {
+      const res = await fetch(`${API_URL}/reports/test/${selectedTestId}/html`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       // We can also query all submissions/logs for the test to seed the monitor page state on initial load!
@@ -208,7 +209,7 @@ export default function LiveMonitoring() {
       const headers = { Authorization: `Bearer ${token}` };
 
       // Get submissions to see who has already submitted or is active
-      const subRes = await fetch(`http://localhost:5000/api/submissions/admin/test/${selectedTestId}`, { headers });
+      const subRes = await fetch(`${API_URL}/submissions/admin/test/${selectedTestId}`, { headers });
       const submissions = await subRes.json();
 
       if (!subRes.ok) return;
@@ -219,7 +220,7 @@ export default function LiveMonitoring() {
         const studentId = sub.student._id;
         
         // Fetch proctor logs for this student
-        const proctorRes = await fetch(`http://localhost:5000/api/proctor/admin/test/${selectedTestId}/student/${studentId}`, { headers });
+        const proctorRes = await fetch(`${API_URL}/proctor/admin/test/${selectedTestId}/student/${studentId}`, { headers });
         const proctorData = await proctorRes.json();
 
         const violations = proctorData.events || [];

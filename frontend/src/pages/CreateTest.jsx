@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
+import { API_URL } from '../config';
 import { Plus, Trash2, Code, FileText, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function CreateTest() {
@@ -108,7 +109,7 @@ export default function CreateTest() {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/tests', {
+      const res = await fetch(`${API_URL}/tests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

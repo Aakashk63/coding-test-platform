@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
+import { API_URL } from '../config';
 import { FileCode, Calendar, Copy, Check, Eye, Trash2, ArrowRight, Play, BarChart2 } from 'lucide-react';
+
 
 export default function ManageTests() {
   const navigate = useNavigate();
@@ -12,7 +14,7 @@ export default function ManageTests() {
   useEffect(() => {
     const fetchTests = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/tests/admin', {
+        const res = await fetch(`${API_URL}/tests/admin`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },

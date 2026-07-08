@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
+import { API_URL } from '../config';
 import { 
   FileSpreadsheet, 
   FileText, 
@@ -26,7 +27,7 @@ export default function ReportsPage() {
   useEffect(() => {
     const fetchTests = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/tests/admin', {
+        const res = await fetch(`${API_URL}/tests/admin`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
         const data = await res.json();
@@ -50,7 +51,7 @@ export default function ReportsPage() {
     const fetchSubmissions = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/submissions/admin/test/${selectedTestId}`, {
+        const res = await fetch(`${API_URL}/submissions/admin/test/${selectedTestId}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
         const data = await res.json();
@@ -69,12 +70,12 @@ export default function ReportsPage() {
     if (!selectedTestId) return;
     const token = localStorage.getItem('token');
     // Open in window or fetch as file download
-    window.open(`http://localhost:5000/api/reports/test/${selectedTestId}/csv?token=${token}`, '_blank');
+    window.open(`${API_URL}/reports/test/${selectedTestId}/csv?token=${token}`, '_blank');
   };
 
   const handleOpenPrintHTML = () => {
     if (!selectedTestId) return;
-    window.open(`http://localhost:5000/api/reports/test/${selectedTestId}/html`, '_blank');
+    window.open(`${API_URL}/reports/test/${selectedTestId}/html`, '_blank');
   };
 
   const filteredSubmissions = submissions.filter(

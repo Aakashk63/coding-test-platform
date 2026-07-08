@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
+import { API_URL } from '../config';
 import { 
   FileCode, 
   Activity, 
@@ -30,11 +31,11 @@ export default function AdminDashboard() {
         const headers = { Authorization: `Bearer ${token}` };
 
         // Fetch stats
-        const statsRes = await fetch('http://localhost:5000/api/tests/admin/dashboard', { headers });
+        const statsRes = await fetch(`${API_URL}/tests/admin/dashboard`, { headers });
         const statsData = await statsRes.json();
 
         // Fetch tests list
-        const testsRes = await fetch('http://localhost:5000/api/tests/admin', { headers });
+        const testsRes = await fetch(`${API_URL}/tests/admin`, { headers });
         const testsData = await testsRes.json();
 
         if (statsRes.ok) setStats(statsData);

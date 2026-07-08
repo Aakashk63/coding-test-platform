@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import io from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
+import { API_URL, SOCKET_URL } from '../config';
 import { useProctor } from '../hooks/useProctor';
 import { 
   Play, 
@@ -62,7 +63,7 @@ export default function StudentExam() {
         const headers = { Authorization: `Bearer ${token}` };
 
         // Get test configuration
-        const testRes = await fetch(`http://localhost:5000/api/tests/student/${testId}`, { headers });
+        const testRes = await fetch(`${API_URL}/tests/student/${testId}`, { headers });
         const testData = await testRes.json();
 
         if (!testRes.ok) {
@@ -78,7 +79,7 @@ export default function StudentExam() {
         setQuestions(testData.questions);
 
         // Fetch previous saved submissions if any (recover session)
-        const subRes = await fetch(`http://localhost:5000/api/submissions/student/test/${testData._id}`, { headers });
+        const subRes = await fetch(`${API_URL}/submissions/student/test/${testData._id}`, { headers });
         const subData = await subRes.json();
 
         // Initialize code map
@@ -115,7 +116,7 @@ export default function StudentExam() {
   useEffect(() => {
     if (!test || !user) return;
 
-    const newSocket = io('http://localhost:5000');
+    const newSocket = io(SOCKET_URL);
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
@@ -272,7 +273,7 @@ export default function StudentExam() {
     setExecResults(null);
 
     try {
-      const res = await fetch('http://localhost:5000/api/submissions/run', {
+      const res = await fetch(`${API_URL}/submissions/run`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -303,7 +304,7 @@ export default function StudentExam() {
     setConsoleStderr('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/submissions/submit-question', {
+      const res = await fetch(`${API_URL}/submissions/submit-question`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -328,7 +329,7 @@ export default function StudentExam() {
   const handleFinalSubmit = async (type = 'NORMAL') => {
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:5000/api/submissions/submit-exam', {
+      const res = await fetch(`${API_URL}/submissions/submit-exam`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({

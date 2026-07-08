@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as blazeface from '@tensorflow-models/blazeface';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import { API_URL } from '../config';
 
 export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabled = true }) => {
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -105,7 +106,7 @@ export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabl
 
     // Call REST API to increment strike and log
     try {
-      await fetch('http://localhost:5000/api/proctor/violation', {
+      await fetch(`${API_URL}/proctor/violation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
