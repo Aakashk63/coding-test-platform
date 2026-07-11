@@ -55,6 +55,14 @@ const questionSchema = new mongoose.Schema({
       type: String,
       default: '',
     },
+    python_driver: {
+      type: String,
+      default: '',
+    },
+    java_driver: {
+      type: String,
+      default: '',
+    },
   },
   testCases: [testCaseSchema],
 });

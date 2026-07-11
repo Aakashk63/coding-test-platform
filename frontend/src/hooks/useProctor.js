@@ -10,6 +10,7 @@ export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabl
   const [strikes, setStrikes] = useState(0);
   const [cameraActive, setCameraActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [phoneDetected, setPhoneDetected] = useState(false);
 
   const videoRef = useRef(null);
   const faceModelRef = useRef(null);
@@ -151,11 +152,17 @@ export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabl
           );
 
           if (cellPhone) {
+            setPhoneDetected(true);
             await triggerViolation('PHONE_DETECTED', `Mobile phone detected with ${(cellPhone.score * 100).toFixed(0)}% confidence.`);
+          } else {
+            setPhoneDetected(false);
           }
+        } else {
+          setPhoneDetected(false);
         }
       } catch (err) {
         console.error('Detection engine cycle error:', err);
+        setPhoneDetected(false);
       }
     };
 
@@ -201,5 +208,6 @@ export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabl
     videoRef,
     startCamera,
     stopCamera,
+    phoneDetected,
   };
 };

@@ -218,6 +218,7 @@ export default function StudentExam() {
     cameraActive,
     strikes,
     modelsLoaded,
+    phoneDetected,
   } = useProctor({
     testId: test?._id,
     userId: user?.id,
@@ -562,15 +563,24 @@ export default function StudentExam() {
         <div className="w-1/2 flex flex-col overflow-hidden bg-slate-950/80 relative">
           
           {/* Webcam corner overlay */}
-          <div className="absolute top-14 right-4 w-28 h-20 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden z-30 shadow-2xl flex items-center justify-center">
+          <div className={`absolute top-14 right-4 w-28 h-20 bg-slate-950 border rounded-lg overflow-hidden z-30 shadow-2xl flex items-center justify-center transition-all ${
+            phoneDetected ? 'border-rose-500 ring-2 ring-rose-500/50 animate-pulse' : 'border-slate-800'
+          }`}>
             {cameraActive ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover scale-x-[-1]"
-              />
+              <>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover scale-x-[-1]"
+                />
+                {phoneDetected && (
+                  <div className="absolute inset-0 bg-rose-500/25 flex flex-col items-center justify-center p-1 text-center pointer-events-none">
+                    <span className="text-[8px] font-black text-rose-200 uppercase tracking-widest bg-rose-950 border border-rose-500/50 px-1 rounded animate-bounce">Phone</span>
+                  </div>
+                )}
+              </>
             ) : (
               <Video size={16} className="text-rose-500 animate-pulse" />
             )}

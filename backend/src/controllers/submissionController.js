@@ -35,6 +35,7 @@ export const runCode = async (req, res) => {
       questionId,
       language,
       code,
+      driverCode: question.starterTemplates ? question.starterTemplates[`${language}_driver`] : '',
       testCases: question.testCases,
     });
 
@@ -77,6 +78,7 @@ export const submitQuestion = async (req, res) => {
       questionId,
       language,
       code,
+      driverCode: question.starterTemplates ? question.starterTemplates[`${language}_driver`] : '',
       testCases: question.testCases,
     });
 

@@ -31,7 +31,16 @@ export const initExecutionWorker = () => {
           ? testCases.filter(tc => !tc.hidden)
           : testCases;
 
-        results = await runExecution(language, code, driverCode, targetCases);
+        let activeDriver = driverCode;
+        if (!activeDriver || activeDriver.includes("result = solution(nums, target)") || activeDriver.includes("solver.solution(nums, target)")) {
+          if (language === 'python') {
+            activeDriver = `import sys\nimport json\n\nif __name__ == '__main__':\n    lines = sys.stdin.read().splitlines()\n    if len(lines) >= 2:\n        nums = json.loads(lines[0])\n        target = int(lines[1])\n        if 'Solution' in globals():\n            sol = Solution()\n            methods = [m for m in dir(sol) if not m.startswith('_') and callable(getattr(sol, m))]\n            if methods:\n                result = getattr(sol, methods[0])(nums, target)\n            else:\n                result = sol.solution(nums, target)\n        else:\n            result = solution(nums, target)\n        print(json.dumps(result))`;
+          } else if (language === 'java') {
+            activeDriver = `import java.io.*;\nimport java.util.*;\n\npublic class Main {\n    public static void main(String[] args) throws Exception {\n        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));\n        String l1 = reader.readLine();\n        String l2 = reader.readLine();\n        if (l1 == null || l2 == null) return;\n        \n        l1 = l1.trim().replaceAll("[\\[\\]]", "");\n        String[] parts = l1.split(",");\n        int[] nums = new int[parts.length];\n        for(int i=0; i<parts.length; i++){\n            nums[i] = Integer.parseInt(parts[i].trim());\n        }\n        int target = Integer.parseInt(l2.trim());\n        Solution solver = new Solution();\n        java.lang.reflect.Method targetMethod = null;\n        for (java.lang.reflect.Method m : Solution.class.getDeclaredMethods()) {\n            if (java.lang.reflect.Modifier.isPublic(m.getModifiers()) && !m.getName().equals("main")) {\n                targetMethod = m;\n                break;\n            } \n        }\n        if (targetMethod != null) {\n            Object res = targetMethod.invoke(solver, nums, target);\n            if (res instanceof int[]) {\n                System.out.println(Arrays.toString((int[]) res).replace(" ", ""));\n            } else {\n                System.out.println(res);\n            }\n        } else {\n            System.out.println(Arrays.toString(solver.solution(nums, target)).replace(" ", ""));\n        }\n    }\n}`;
+          }
+        }
+
+        results = await runExecution(language, code, activeDriver, targetCases);
       }
 
       const socketId = getSocketIdByUserId(userId);
@@ -165,10 +174,20 @@ export const initExecutionWorker = () => {
           const studentCode = code[qIdStr] || question.starterTemplates[language] || '';
 
           // Let's run grading for each question
+          const testDriver = question.starterTemplates[`${language}_driver`] || '';
+          let activeDriver = testDriver;
+          if (!activeDriver || activeDriver.includes("result = solution(nums, target)") || activeDriver.includes("solver.solution(nums, target)")) {
+            if (language === 'python') {
+              activeDriver = `import sys\nimport json\n\nif __name__ == '__main__':\n    lines = sys.stdin.read().splitlines()\n    if len(lines) >= 2:\n        nums = json.loads(lines[0])\n        target = int(lines[1])\n        if 'Solution' in globals():\n            sol = Solution()\n            methods = [m for m in dir(sol) if not m.startswith('_') and callable(getattr(sol, m))]\n            if methods:\n                result = getattr(sol, methods[0])(nums, target)\n            else:\n                result = sol.solution(nums, target)\n        else:\n            result = solution(nums, target)\n        print(json.dumps(result))`;
+            } else if (language === 'java') {
+              activeDriver = `import java.io.*;\nimport java.util.*;\n\npublic class Main {\n    public static void main(String[] args) throws Exception {\n        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));\n        String l1 = reader.readLine();\n        String l2 = reader.readLine();\n        if (l1 == null || l2 == null) return;\n        \n        l1 = l1.trim().replaceAll("[\\[\\]]", "");\n        String[] parts = l1.split(",");\n        int[] nums = new int[parts.length];\n        for(int i=0; i<parts.length; i++){\n            nums[i] = Integer.parseInt(parts[i].trim());\n        }\n        int target = Integer.parseInt(l2.trim());\n        Solution solver = new Solution();\n        java.lang.reflect.Method targetMethod = null;\n        for (java.lang.reflect.Method m : Solution.class.getDeclaredMethods()) {\n            if (java.lang.reflect.Modifier.isPublic(m.getModifiers()) && !m.getName().equals("main")) {\n                targetMethod = m;\n                break;\n            } \n        }\n        if (targetMethod != null) {\n            Object res = targetMethod.invoke(solver, nums, target);\n            if (res instanceof int[]) {\n                System.out.println(Arrays.toString((int[]) res).replace(" ", ""));\n            } else {\n                System.out.println(res);\n            }\n        } else {\n            System.out.println(Arrays.toString(solver.solution(nums, target)).replace(" ", ""));\n        }\n    }\n}`;
+            }
+          }
+
           const qResults = await runExecution(
             language, 
             studentCode, 
-            question.starterTemplates[`${language}_driver`] || '', // Custom driver code if exists
+            activeDriver, 
             question.testCases
           );
 
