@@ -129,10 +129,14 @@ export const verifyTestId = async (req, res) => {
     const proctorLog = await ProctoringLog.findOne({ student: req.user.id, test: test._id });
     if (proctorLog) {
       if (proctorLog.isSuspended) {
-        return res.status(403).json({ error: "contact your dt mentor to attend the test " });
+        return res.status(403).json({ 
+          error: "YOUR TEST IS CURRENTLY PAUSED\n\nPlease contact your DT Mentor to attend the test.\n\nWaiting for Administrator Approval." 
+        });
       }
       if (proctorLog.events.some(e => e.eventType === 'AUTO_SUBMITTED')) {
-        return res.status(403).json({ error: "contact your dt mentor to attend the test " });
+        return res.status(403).json({ 
+          error: "YOUR TEST IS CURRENTLY PAUSED\n\nPlease contact your DT Mentor to attend the test.\n\nWaiting for Administrator Approval." 
+        });
       }
     }
 
@@ -173,10 +177,14 @@ export const getStudentTestById = async (req, res) => {
     const proctorLog = await ProctoringLog.findOne({ student: req.user.id, test: test._id });
     if (proctorLog) {
       if (proctorLog.isSuspended) {
-        return res.status(403).json({ error: "contact your dt mentor to attend the test " });
+        return res.status(403).json({ 
+          error: "YOUR TEST IS CURRENTLY PAUSED\n\nPlease contact your DT Mentor to attend the test.\n\nWaiting for Administrator Approval." 
+        });
       }
       if (proctorLog.events.some(e => e.eventType === 'AUTO_SUBMITTED')) {
-        return res.status(403).json({ error: "contact your dt mentor to attend the test " });
+        return res.status(403).json({ 
+          error: "YOUR TEST IS CURRENTLY PAUSED\n\nPlease contact your DT Mentor to attend the test.\n\nWaiting for Administrator Approval." 
+        });
       }
     }
 

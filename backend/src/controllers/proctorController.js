@@ -144,7 +144,7 @@ export const resumeStudentExam = async (req, res) => {
     
     const log = await ProctoringLog.findOneAndUpdate(
       { student: studentId, test: testId },
-      { isSuspended: false },
+      { isSuspended: false, suspendedReason: '' },
       { new: true }
     );
 

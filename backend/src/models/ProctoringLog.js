@@ -44,6 +44,10 @@ const proctoringLogSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    suspendedReason: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,

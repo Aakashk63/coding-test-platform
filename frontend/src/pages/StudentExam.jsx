@@ -56,6 +56,7 @@ export default function StudentExam() {
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(true);
+  const [pauseReason, setPauseReason] = useState(null);
 
   const activeQuestion = questions[activeQIdx] || null;
   const currentCode = activeQuestion ? (codeMap[activeQuestion._id] || '') : '';
@@ -204,7 +205,9 @@ export default function StudentExam() {
     // Real-time resume exam trigger from Admin monitor
     newSocket.on('resume_exam', ({ message }) => {
       setIsPaused(false);
+      setPauseReason(null);
       showToast('success', message || 'Your exam access has been restored. You may continue.');
+      handleReEnterFullscreen();
     });
 
     return () => {
@@ -240,7 +243,10 @@ export default function StudentExam() {
     userEmail: user?.email,
     socket,
     onViolationTriggered: handleViolationAlert,
-    onExamPaused: () => setIsPaused(true),
+    onExamPaused: (reason) => {
+      setIsPaused(true);
+      setPauseReason(reason);
+    },
     enabled: test !== null && !autoSubmitted && !isPaused,
   });
 
@@ -494,6 +500,57 @@ export default function StudentExam() {
     );
   }
 
+  if (isPaused) {
+    let pauseTitle = "Assessment Suspended";
+    let pauseBody = "contact your dt mentor to attend the test ";
+    let showWaiting = true;
+
+    if (pauseReason === 'LOOKING_AWAY' || pauseReason === 'SUSPICIOUS_LOOKING') {
+      pauseTitle = "TEST PAUSED";
+      pauseBody = "You were detected looking away from the screen for more than 3 seconds.\n\nPlease contact your DT Mentor to attend the test.";
+      showWaiting = true;
+    } else if (pauseReason === 'NO_FACE') {
+      pauseTitle = "TEST PAUSED";
+      pauseBody = "No face detected for more than 3 seconds.\n\nPlease contact your DT Mentor to attend the test.";
+      showWaiting = true;
+    } else if (pauseReason === 'PHONE_DETECTED') {
+      pauseTitle = "TEST PAUSED";
+      pauseBody = "Mobile phone detected.\n\nPlease contact your DT Mentor to attend the test.";
+      showWaiting = false;
+    } else if (pauseReason === 'CAMERA_DETECTED') {
+      pauseTitle = "TEST PAUSED";
+      pauseBody = "Camera device detected.\n\nPlease contact your DT Mentor to attend the test.";
+      showWaiting = false;
+    } else if (pauseReason === 'MULTIPLE_FACES') {
+      pauseTitle = "TEST PAUSED";
+      pauseBody = "Multiple faces detected.\n\nPlease contact your DT Mentor to attend the test.";
+      showWaiting = true;
+    } else if (pauseReason === 'CAMERA_DISCONNECTED') {
+      pauseTitle = "Camera disconnected.";
+      pauseBody = "Please contact your DT Mentor.";
+      showWaiting = false;
+    }
+
+    return (
+      <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col justify-center items-center z-50 p-6 text-center animate-fadeIn">
+        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-lg shadow-2xl space-y-4">
+          <div className="inline-flex items-center justify-center p-3 bg-rose-500/10 text-rose-400 rounded-2xl border border-rose-500/20 mb-2">
+            <Lock size={32} className="animate-pulse" />
+          </div>
+          <h2 className="text-xl font-black text-slate-100 tracking-tight">{pauseTitle}</h2>
+          <p className="text-sm text-rose-400 font-bold leading-relaxed border-t border-b border-slate-800/80 py-4 my-2 whitespace-pre-line">
+            {pauseBody}
+          </p>
+          {showWaiting && (
+            <p className="text-xs text-slate-500 font-mono italic animate-pulse">
+              Waiting for Administrator Approval.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (autoSubmitted) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-6 text-center">
@@ -530,20 +587,6 @@ export default function StudentExam() {
             >
               Re-enter Fullscreen
             </button>
-          </div>
-        </div>
-      )}
-      
-      {isPaused && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col justify-center items-center z-50 p-6 text-center animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-lg shadow-2xl space-y-4">
-            <div className="inline-flex items-center justify-center p-3 bg-rose-500/10 text-rose-400 rounded-2xl border border-rose-500/20 mb-2">
-              <Lock size={32} className="animate-pulse" />
-            </div>
-             <h2 className="text-xl font-black text-slate-100 tracking-tight">Assessment Suspended</h2>
-            <p className="text-sm text-rose-400 font-bold leading-relaxed border-t border-b border-slate-800/80 py-4 my-2">
-              contact your dt mentor to attend the test 
-            </p>
           </div>
         </div>
       )}

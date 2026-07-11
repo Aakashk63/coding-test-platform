@@ -74,14 +74,14 @@ export const initSocket = (server) => {
     });
 
     // Handle student suspends exam lobby due to suspicious gaze posture
-    socket.on('pause_candidate_exam', async ({ testId, userId }) => {
+    socket.on('pause_candidate_exam', async ({ testId, userId, reason }) => {
       const roomName = `test_${testId}`;
-      console.log(`⏸️ Student [${userId}] exam access paused for test [${testId}]`);
+      console.log(`⏸️ Student [${userId}] exam access paused for test [${testId}]. Reason: ${reason}`);
       
       try {
         await ProctoringLog.findOneAndUpdate(
           { student: userId, test: testId },
-          { isSuspended: true },
+          { isSuspended: true, suspendedReason: reason || '' },
           { upsert: true, new: true }
         );
       } catch (err) {
@@ -89,7 +89,7 @@ export const initSocket = (server) => {
       }
       
       // Broadcast to admin monitors in the room
-      socket.to(roomName).emit('student_paused', { userId, timestamp: new Date() });
+      socket.to(roomName).emit('student_paused', { userId, reason, timestamp: new Date() });
     });
 
     // Handle admin continues/resumes exam access
@@ -100,7 +100,7 @@ export const initSocket = (server) => {
       try {
         await ProctoringLog.findOneAndUpdate(
           { student: userId, test: testId },
-          { isSuspended: false }
+          { isSuspended: false, suspendedReason: '' }
         );
       } catch (err) {
         console.error('Error removing suspension from DB:', err);

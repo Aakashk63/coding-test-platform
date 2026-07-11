@@ -27,6 +27,7 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
 
   const violationStartRef = useRef(null);
   const pausedTriggeredRef = useRef(false);
+  const noFaceStartRef = useRef(null);
 
   useEffect(() => {
     socketRef.current = socket;
@@ -77,6 +78,23 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
+
+      // Add camera disconnected listener to video tracks
+      mediaStream.getVideoTracks().forEach((track) => {
+        track.onended = () => {
+          console.warn('🎥 Video track ended (camera disconnected).');
+          if (!pausedTriggeredRef.current) {
+            pausedTriggeredRef.current = true;
+            if (socketRef.current && socketRef.current.connected) {
+              socketRef.current.emit('pause_candidate_exam', { testId, userId, reason: 'CAMERA_DISCONNECTED' });
+            }
+            if (onExamPausedRef.current) {
+              onExamPausedRef.current('CAMERA_DISCONNECTED');
+            }
+          }
+        };
+      });
+
       return mediaStream;
     } catch (err) {
       console.error('Camera/Mic permission denied:', err);
@@ -185,10 +203,37 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
           if (predictions.length === 0) {
             const proofImg = captureSnapshot();
             await triggerViolation('NO_FACE', proofImg || 'No face detected in webcam stream.');
+
+            if (!noFaceStartRef.current) {
+              noFaceStartRef.current = Date.now();
+            } else {
+              const duration = Date.now() - noFaceStartRef.current;
+              if (duration >= 3000 && !pausedTriggeredRef.current) {
+                pausedTriggeredRef.current = true;
+                if (socketRef.current && socketRef.current.connected) {
+                  socketRef.current.emit('pause_candidate_exam', { testId, userId, reason: 'NO_FACE' });
+                }
+                if (onExamPausedRef.current) {
+                  onExamPausedRef.current('NO_FACE');
+                }
+              }
+            }
           } else if (predictions.length > 1) {
+            noFaceStartRef.current = null;
             const proofImg = captureSnapshot();
             await triggerViolation('MULTIPLE_FACES', proofImg || `Multiple faces (${predictions.length}) detected in webcam.`);
+
+            if (!pausedTriggeredRef.current) {
+              pausedTriggeredRef.current = true;
+              if (socketRef.current && socketRef.current.connected) {
+                socketRef.current.emit('pause_candidate_exam', { testId, userId, reason: 'MULTIPLE_FACES' });
+              }
+              if (onExamPausedRef.current) {
+                onExamPausedRef.current('MULTIPLE_FACES');
+              }
+            }
           } else {
+            noFaceStartRef.current = null;
             // Check head posture / looking away/down
             const p = predictions[0];
             const landmarks = p.landmarks;
@@ -227,11 +272,11 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
                     await triggerViolation('SUSPICIOUS_LOOKING', proofImg || `Student stayed in suspicious posture (${infractionType}) for more than 3s.`);
                     
                     if (socketRef.current && socketRef.current.connected) {
-                      socketRef.current.emit('pause_candidate_exam', { testId, userId });
+                      socketRef.current.emit('pause_candidate_exam', { testId, userId, reason: 'LOOKING_AWAY' });
                     }
                     
                     if (onExamPausedRef.current) {
-                      onExamPausedRef.current();
+                      onExamPausedRef.current('LOOKING_AWAY');
                     }
                   }
                 }
