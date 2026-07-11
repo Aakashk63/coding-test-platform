@@ -88,16 +88,22 @@ export default function ReportsPage() {
         const res = await fetch(`${API_URL}/proctor/admin/test/${selectedTestId}/student/${selectedSub.student._id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
-        const data = await res.json();
-        if (res.ok) {
-          setProctorLogs(data.events || []);
-          // Save the full log object to check isSuspended state
-          setSelectedSubLog(data);
-        } else {
-          throw new Error(data.error || 'Failed to load proctor logs');
+        
+        // Handle non-JSON or HTML error responses gracefully (e.g. 404 Render deployment pages)
+        const contentType = res.headers.get("content-type");
+        if (!res.ok || !contentType || !contentType.includes("application/json")) {
+          setProctorLogs([]);
+          setSelectedSubLog(null);
+          return;
         }
+
+        const data = await res.json();
+        setProctorLogs(data.events || []);
+        setSelectedSubLog(data);
       } catch (err) {
-        setModalError(err.message);
+        console.warn('Proctor logs fetch warning:', err.message);
+        setProctorLogs([]);
+        setSelectedSubLog(null);
       } finally {
         setModalLoading(false);
       }
