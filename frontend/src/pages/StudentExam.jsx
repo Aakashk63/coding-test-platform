@@ -34,12 +34,13 @@ export default function StudentExam() {
   const [codeMap, setCodeMap] = useState({}); // questionId -> code
 
   // Execution states
-  const [consoleTab, setConsoleTab] = useState('input'); // 'input', 'output', 'error'
+  const [consoleTab, setConsoleTab] = useState('testcase'); // 'testcase', 'result'
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [execResults, setExecResults] = useState(null);
   const [consoleStdout, setConsoleStdout] = useState('');
   const [consoleStderr, setConsoleStderr] = useState('');
+  const [activeCaseIdx, setActiveCaseIdx] = useState(0);
   
   // Timer state
   const [timeLeft, setTimeLeft] = useState(0); // seconds
@@ -112,6 +113,15 @@ export default function StudentExam() {
     fetchExam();
   }, [testId]);
 
+  // Reset console states when question changes
+  useEffect(() => {
+    setExecResults(null);
+    setConsoleStdout('');
+    setConsoleStderr('');
+    setConsoleTab('testcase');
+    setActiveCaseIdx(0);
+  }, [activeQIdx]);
+
   // 2. Setup Socket.IO for real-time results and proctoring
   useEffect(() => {
     if (!test || !user) return;
@@ -132,7 +142,8 @@ export default function StudentExam() {
     newSocket.on('run_result', ({ questionId, results }) => {
       setIsRunning(false);
       setExecResults(results);
-      setConsoleTab('output');
+      setConsoleTab('result');
+      setActiveCaseIdx(0);
       
       const compileErr = results.find(r => r.status === 'Compilation Error');
       if (compileErr) {
@@ -140,9 +151,8 @@ export default function StudentExam() {
         setConsoleStdout('');
       } else {
         const errors = results.map(r => r.error).filter(Boolean).join('\n');
-        const outputs = results.map((r, i) => `Case ${i+1}: ${r.passed ? 'PASSED' : 'FAILED'}\nOutput: ${r.actualOutput}`).join('\n\n');
-        setConsoleStdout(outputs);
         setConsoleStderr(errors);
+        setConsoleStdout('');
       }
     });
 
@@ -150,8 +160,18 @@ export default function StudentExam() {
     newSocket.on('submit_question_result', ({ questionId, score, passedCases, failedCases, results }) => {
       setIsSubmitting(false);
       setExecResults(results);
-      setConsoleTab('output');
+      setConsoleTab('result');
+      setActiveCaseIdx(0);
       
+      const compileErr = results.find(r => r.status === 'Compilation Error');
+      if (compileErr) {
+        setConsoleStderr(compileErr.error);
+        setConsoleStdout('');
+      } else {
+        const errors = results.map(r => r.error).filter(Boolean).join('\n');
+        setConsoleStderr(errors);
+        setConsoleStdout('');
+      }
       showToast('success', `Question saved! Score: ${score} points (${passedCases} passed, ${failedCases} failed)`);
     });
 
@@ -267,7 +287,7 @@ export default function StudentExam() {
     if (isRunning || !activeQuestion) return;
     
     setIsRunning(true);
-    setConsoleTab('output');
+    setConsoleTab('result');
     setConsoleStdout('Compiling and running code against visible test cases...');
     setConsoleStderr('');
     setExecResults(null);
@@ -299,7 +319,7 @@ export default function StudentExam() {
     if (isSubmitting || !activeQuestion) return;
 
     setIsSubmitting(true);
-    setConsoleTab('output');
+    setConsoleTab('result');
     setConsoleStdout('Submitting answer to grading queue...');
     setConsoleStderr('');
 
@@ -599,25 +619,26 @@ export default function StudentExam() {
           </div>
 
           {/* Bottom Console Panel */}
-          <div className="h-48 border-t border-slate-900 flex flex-col bg-slate-950 shrink-0 z-20">
+          <div className="h-64 border-t border-slate-900 flex flex-col bg-slate-950 shrink-0 z-20">
             {/* Console Header Tabs */}
             <div className="h-10 border-b border-slate-900 flex justify-between items-center px-4 bg-slate-950/80">
               <div className="flex gap-2">
                 <button
-                  onClick={() => setConsoleTab('input')}
+                  onClick={() => setConsoleTab('testcase')}
                   className={`px-3 py-1 rounded text-xs font-semibold ${
-                    consoleTab === 'input' ? 'bg-slate-900 text-slate-200 border border-slate-800' : 'text-slate-500'
+                    consoleTab === 'testcase' ? 'bg-slate-900 text-slate-200 border border-slate-800' : 'text-slate-500 hover:text-slate-400'
                   }`}
                 >
-                  Stdout console
+                  Testcase
                 </button>
                 <button
-                  onClick={() => setConsoleTab('output')}
-                  className={`px-3 py-1 rounded text-xs font-semibold ${
-                    consoleTab === 'output' ? 'bg-slate-900 text-slate-200 border border-slate-800' : 'text-slate-500'
+                  onClick={() => setConsoleTab('result')}
+                  disabled={!execResults && !isRunning && !isSubmitting}
+                  className={`px-3 py-1 rounded text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed ${
+                    consoleTab === 'result' ? 'bg-slate-900 text-slate-200 border border-slate-800' : 'text-slate-500 hover:text-slate-400'
                   }`}
                 >
-                  Grading logs
+                  Result
                 </button>
               </div>
 
@@ -644,25 +665,177 @@ export default function StudentExam() {
             </div>
 
             {/* Console Body Area */}
-            <div className="flex-1 overflow-y-auto p-4 bg-slate-950 font-mono text-xs text-emerald-400">
-              {consoleTab === 'input' && (
-                <div className="text-slate-500 italic">
-                  Press 'Run Code' to compile. Compilation outputs are shown here line-by-line.
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-950 font-sans text-xs text-slate-300">
+              {consoleTab === 'testcase' && activeQuestion && (
+                <div className="space-y-4">
+                  {/* Case buttons */}
+                  <div className="flex gap-2 border-b border-slate-900 pb-2">
+                    {activeQuestion.testCases.filter(tc => !tc.hidden).map((tc, idx) => (
+                      <button
+                        key={tc._id || idx}
+                        type="button"
+                        onClick={() => setActiveCaseIdx(idx)}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
+                          activeCaseIdx === idx
+                            ? 'bg-slate-900 border-slate-800 text-blue-400 font-bold'
+                            : 'bg-slate-950 border-slate-900 text-slate-500 hover:text-slate-400'
+                        }`}
+                      >
+                        Case {idx + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Inputs and expected outputs for selected case */}
+                  {activeQuestion.testCases.filter(tc => !tc.hidden)[activeCaseIdx] && (
+                    <div className="space-y-3 font-mono">
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Input</div>
+                        <pre className="bg-slate-900/60 border border-slate-850 px-3 py-2 rounded text-slate-300 whitespace-pre-wrap">{activeQuestion.testCases.filter(tc => !tc.hidden)[activeCaseIdx].input}</pre>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Expected Output</div>
+                        <pre className="bg-slate-900/60 border border-slate-850 px-3 py-2 rounded text-slate-300 whitespace-pre-wrap">{activeQuestion.testCases.filter(tc => !tc.hidden)[activeCaseIdx].expectedOutput}</pre>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {consoleTab === 'output' && (
-                <div className="space-y-2">
-                  {consoleStdout && <pre className="text-slate-350 whitespace-pre-wrap">{consoleStdout}</pre>}
-                  {consoleStderr && <pre className="text-rose-400 whitespace-pre-wrap">{consoleStderr}</pre>}
-                  
-                  {/* Results metrics */}
-                  {execResults && (
-                    <div className="border-t border-slate-900 pt-2 mt-2 flex gap-4 text-[10px] text-slate-500 font-bold uppercase">
-                      <span>Cases run: {execResults.length}</span>
-                      <span>Passed: {execResults.filter(r => r.passed).length}</span>
-                      <span>Avg Speed: {Math.round(execResults.reduce((acc, r) => acc + (r.timeMs || 0), 0) / execResults.length)}ms</span>
+              {consoleTab === 'result' && (
+                <div className="space-y-4">
+                  {/* Loading State */}
+                  {(isRunning || isSubmitting) && (
+                    <div className="flex flex-col items-center justify-center py-6 text-slate-500 italic gap-2 font-mono">
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+                      <div>{consoleStdout}</div>
                     </div>
+                  )}
+
+                  {/* Compilation/Runtime Error State */}
+                  {!(isRunning || isSubmitting) && consoleStderr && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-bold text-rose-400 flex items-center gap-1.5">
+                        <AlertTriangle size={16} />
+                        <span>Compilation Error</span>
+                      </div>
+                      <pre className="bg-rose-950/10 border border-rose-900/30 p-3 rounded font-mono text-rose-300 whitespace-pre-wrap">{consoleStderr}</pre>
+                    </div>
+                  )}
+
+                  {/* Execution Results State */}
+                  {!(isRunning || isSubmitting) && !consoleStderr && execResults && (
+                    (() => {
+                      const visibleCases = activeQuestion ? activeQuestion.testCases.filter(tc => !tc.hidden) : [];
+                      
+                      // Check if it was a RUN (visible cases only) or SUBMIT (all cases)
+                      const isRunAction = execResults.length === visibleCases.length;
+                      const activeTestCase = isRunAction 
+                        ? visibleCases[activeCaseIdx] 
+                        : activeQuestion?.testCases[activeCaseIdx];
+
+                      // Status aggregates
+                      const compileErr = execResults.find(r => r.status === 'Compilation Error');
+                      const runtimeErr = execResults.find(r => r.status === 'Runtime Error');
+                      const timeoutErr = execResults.find(r => r.status === 'Time Limit Exceeded');
+                      const allPassed = execResults.every(r => r.passed);
+
+                      let statusText = 'Wrong Answer';
+                      let statusColor = 'text-rose-500';
+                      
+                      if (compileErr) {
+                        statusText = 'Compilation Error';
+                        statusColor = 'text-rose-500';
+                      } else if (runtimeErr) {
+                        statusText = 'Runtime Error';
+                        statusColor = 'text-rose-500';
+                      } else if (timeoutErr) {
+                        statusText = 'Time Limit Exceeded';
+                        statusColor = 'text-rose-500';
+                      } else if (allPassed) {
+                        statusText = 'Accepted';
+                        statusColor = 'text-emerald-400';
+                      }
+
+                      const activeResult = execResults[activeCaseIdx];
+
+                      return (
+                        <div className="space-y-4">
+                          {/* Status Header */}
+                          <div className="flex justify-between items-center border-b border-slate-900 pb-2.5">
+                            <div>
+                              <h3 className={`text-base font-black tracking-wide ${statusColor}`}>{statusText}</h3>
+                              {activeResult && (
+                                <span className="text-[10px] text-slate-500 font-bold font-mono">
+                                  Runtime: {activeResult.timeMs || 0} ms
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Case toggles */}
+                          <div className="flex flex-wrap gap-2">
+                            {execResults.map((res, idx) => (
+                              <button
+                                key={res.testCaseId || idx}
+                                type="button"
+                                onClick={() => setActiveCaseIdx(idx)}
+                                className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition flex items-center gap-1.5 ${
+                                  activeCaseIdx === idx
+                                    ? 'bg-slate-900 border-slate-800 text-slate-200'
+                                    : 'bg-slate-950 border-slate-900 text-slate-500 hover:text-slate-400'
+                                }`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${res.passed ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`}></span>
+                                <span>Case {idx + 1}</span>
+                                {res.hidden && <span className="text-[9px] bg-slate-900 border border-slate-800 text-slate-500 px-1 rounded scale-90">Hidden</span>}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Case details */}
+                          {activeResult && (
+                            <div className="space-y-3 font-mono">
+                              {/* Stderr / Error display */}
+                              {activeResult.error && !activeResult.hidden && (
+                                <div>
+                                  <div className="text-[10px] text-rose-400 font-bold uppercase tracking-wider mb-1">Runtime Error</div>
+                                  <pre className="bg-rose-950/10 border border-rose-900/30 px-3 py-2 rounded text-rose-350 whitespace-pre-wrap">{activeResult.error}</pre>
+                                </div>
+                              )}
+
+                              {/* Input */}
+                              <div>
+                                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Input</div>
+                                <pre className="bg-slate-900/60 border border-slate-850 px-3 py-2 rounded text-slate-350 whitespace-pre-wrap">
+                                  {activeResult.hidden ? '[Hidden Test Case]' : (activeTestCase?.input || 'No input')}
+                                </pre>
+                              </div>
+
+                              {/* Output */}
+                              <div>
+                                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Output</div>
+                                <pre className={`border px-3 py-2 rounded whitespace-pre-wrap ${
+                                  activeResult.passed 
+                                    ? 'bg-slate-900/40 border-slate-850 text-emerald-400' 
+                                    : 'bg-rose-950/10 border-rose-900/20 text-rose-400 font-bold'
+                                }`}>
+                                  {activeResult.hidden ? '[Hidden]' : (activeResult.actualOutput?.trim() || 'No output')}
+                                </pre>
+                              </div>
+
+                              {/* Expected Output */}
+                              <div>
+                                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Expected</div>
+                                <pre className="bg-slate-900/60 border border-slate-850 px-3 py-2 rounded text-slate-350 whitespace-pre-wrap">
+                                  {activeResult.hidden ? '[Hidden]' : (activeResult.expectedOutput?.trim() || 'No expected output')}
+                                </pre>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
               )}
