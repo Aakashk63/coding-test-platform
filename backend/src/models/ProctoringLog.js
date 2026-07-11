@@ -39,6 +39,10 @@ const proctoringLogSchema = new mongoose.Schema(
         },
       },
     ],
+    isSuspended: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

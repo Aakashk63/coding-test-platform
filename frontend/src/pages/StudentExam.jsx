@@ -258,12 +258,21 @@ export default function StudentExam() {
     }
   }, [isPaused, test]);
 
-  // Start camera automatically on load when test object is initialized
+  // Start camera automatically and enter full-screen mode when test object is initialized
   useEffect(() => {
     if (test && !cameraActive && !autoSubmitted) {
       startCamera().catch((err) => {
         setError('Camera and Microphone initialization failed. Access is required to attempt the exam.');
       });
+
+      // Request full-screen mode
+      const el = document.documentElement;
+      const rfs = el.requestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (rfs) {
+        rfs.call(el).catch((err) => {
+          console.warn('Fullscreen request deferred by browser security settings:', err.message);
+        });
+      }
     }
     return () => stopCamera();
   }, [test]);
@@ -423,17 +432,27 @@ export default function StudentExam() {
   }
 
   if (error) {
+    const isViolationBlocked = error.includes('cross the violation') || error.includes('contact your mentor');
+
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-6 text-center">
-        <AlertTriangle size={48} className="text-rose-500 mb-3" />
-        <h1 className="text-xl font-bold text-slate-200">Exam Access Blocked</h1>
-        <p className="text-slate-400 max-w-md mt-2 mb-6">{error}</p>
-        <button
-          onClick={() => navigate('/join')}
-          className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-5 py-2 rounded-lg transition"
-        >
-          Return to Lobby
-        </button>
+      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-6 text-center animate-fadeIn">
+        <div className="bg-slate-900 border border-slate-850 p-8 rounded-2xl max-w-lg shadow-2xl space-y-4">
+          <div className="inline-flex items-center justify-center p-3 bg-rose-500/10 text-rose-400 rounded-2xl border border-rose-500/20 mb-2">
+            {isViolationBlocked ? <Lock size={32} /> : <AlertTriangle size={32} />}
+          </div>
+          <h1 className="text-xl font-black text-slate-100 tracking-tight">
+            {isViolationBlocked ? 'Assessment Suspended' : 'Exam Access Blocked'}
+          </h1>
+          <p className={`text-sm leading-relaxed ${isViolationBlocked ? 'text-rose-400 font-bold border-t border-b border-slate-800/80 py-4 my-2' : 'text-slate-400'}`}>
+            {error}
+          </p>
+          <button
+            onClick={() => navigate('/join')}
+            className="bg-slate-950 border border-slate-800 hover:border-slate-750 text-slate-400 hover:text-slate-200 font-semibold px-5 py-2 rounded-lg transition text-xs uppercase tracking-widest mt-2 cursor-pointer"
+          >
+            Return to Lobby
+          </button>
+        </div>
       </div>
     );
   }
@@ -465,11 +484,8 @@ export default function StudentExam() {
               <Lock size={32} className="animate-pulse" />
             </div>
             <h2 className="text-xl font-black text-slate-100 tracking-tight">Assessment Suspended</h2>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Your exam access has been temporarily suspended by the proctoring system due to a prolonged suspicious head posture or gaze violation.
-            </p>
-            <p className="text-xs text-rose-400 font-medium font-mono">
-              Please contact the administrator to request continuation.
+            <p className="text-sm text-rose-400 font-bold leading-relaxed border-t border-b border-slate-800/80 py-4 my-2">
+              Please contact your mentor you cant continue this exam because you cross the violation 
             </p>
           </div>
         </div>

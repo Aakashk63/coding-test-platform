@@ -125,6 +125,17 @@ export const verifyTestId = async (req, res) => {
       return res.status(400).json({ error: 'You have already submitted this test.' });
     }
 
+    // Check if student is currently suspended or auto-submitted
+    const proctorLog = await ProctoringLog.findOne({ student: req.user.id, test: test._id });
+    if (proctorLog) {
+      if (proctorLog.isSuspended) {
+        return res.status(403).json({ error: "Please contact your mentor you cant continue this exam because you cross the violation " });
+      }
+      if (proctorLog.events.some(e => e.eventType === 'AUTO_SUBMITTED')) {
+        return res.status(403).json({ error: "Please contact your mentor you cant continue this exam because you cross the violation " });
+      }
+    }
+
     res.status(200).json({ 
       message: 'Test access verified.',
       test: {
@@ -156,6 +167,17 @@ export const getStudentTestById = async (req, res) => {
     const now = new Date();
     if (now > new Date(test.endTime)) {
       return res.status(403).json({ error: 'Access denied: Test has already ended.' });
+    }
+
+    // Check if student is currently suspended or auto-submitted
+    const proctorLog = await ProctoringLog.findOne({ student: req.user.id, test: test._id });
+    if (proctorLog) {
+      if (proctorLog.isSuspended) {
+        return res.status(403).json({ error: "Please contact your mentor you cant continue this exam because you cross the violation " });
+      }
+      if (proctorLog.events.some(e => e.eventType === 'AUTO_SUBMITTED')) {
+        return res.status(403).json({ error: "Please contact your mentor you cant continue this exam because you cross the violation " });
+      }
     }
 
     // Strip hidden test cases from each question to prevent source leaks

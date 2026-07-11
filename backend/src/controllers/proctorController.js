@@ -61,24 +61,33 @@ export const recordViolation = async (req, res) => {
       timestamp: new Date(),
     });
 
-    // 4. Auto-submission rule: dynamic strikes limit
+    // 4. Auto-submission rule: dynamic strikes limit or NO_FACE missing
     const STRIKE_LIMIT = test.maxStrikes !== undefined ? Number(test.maxStrikes) : 3;
-    if (strikes >= STRIKE_LIMIT) {
-      console.log(`🚨 Student ${userId} reached violation limit (${strikes}/${STRIKE_LIMIT}). Auto-submitting exam.`);
+    const isNoFace = eventType === 'NO_FACE';
 
-      // Log the auto submit event
-      log.events.push({
-        eventType: 'AUTO_SUBMITTED',
-        timestamp: new Date(),
-        proof: `System: Auto-submitted due to ${STRIKE_LIMIT} violation strikes.`,
-      });
-      await log.save();
+    if (strikes >= STRIKE_LIMIT || isNoFace) {
+      const reasonMsg = isNoFace 
+        ? 'automatically submitted because no face was detected in your webcam feed'
+        : `automatically submitted due to reaching the limit of ${STRIKE_LIMIT} proctoring violations`;
+
+      console.log(`🚨 Student ${userId} auto-submission triggered. Reason: ${reasonMsg}`);
+
+      // Log the auto submit event if not already present
+      const alreadySubmitted = log.events.some(e => e.eventType === 'AUTO_SUBMITTED');
+      if (!alreadySubmitted) {
+        log.events.push({
+          eventType: 'AUTO_SUBMITTED',
+          timestamp: new Date(),
+          proof: `System: Auto-submitted. Reason: ${reasonMsg}.`,
+        });
+        await log.save();
+      }
 
       // Trigger socket event to lock student interface immediately
       if (studentSocketId) {
         io.to(studentSocketId).emit('force_auto_submit', {
           reason: 'PROCTOR_AUTO_SUBMIT',
-          message: `Your exam has been automatically submitted due to reaching the limit of ${STRIKE_LIMIT} proctoring violations.`,
+          message: `Your exam has been ${reasonMsg}.`,
         });
       }
 

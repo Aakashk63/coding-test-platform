@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import ProctoringLog from '../models/ProctoringLog.js';
 
 let io = null;
 const activeSockets = new Map(); // userId -> socketId
@@ -73,19 +74,38 @@ export const initSocket = (server) => {
     });
 
     // Handle student suspends exam lobby due to suspicious gaze posture
-    socket.on('pause_candidate_exam', ({ testId, userId }) => {
+    socket.on('pause_candidate_exam', async ({ testId, userId }) => {
       const roomName = `test_${testId}`;
       console.log(`⏸️ Student [${userId}] exam access paused for test [${testId}]`);
+      
+      try {
+        await ProctoringLog.findOneAndUpdate(
+          { student: userId, test: testId },
+          { isSuspended: true },
+          { upsert: true, new: true }
+        );
+      } catch (err) {
+        console.error('Error saving suspension to DB:', err);
+      }
       
       // Broadcast to admin monitors in the room
       socket.to(roomName).emit('student_paused', { userId, timestamp: new Date() });
     });
 
     // Handle admin continues/resumes exam access
-    socket.on('resume_candidate_exam', ({ testId, userId }) => {
+    socket.on('resume_candidate_exam', async ({ testId, userId }) => {
       const roomName = `test_${testId}`;
       console.log(`▶️ Admin resumed Student [${userId}] exam access for test [${testId}]`);
       
+      try {
+        await ProctoringLog.findOneAndUpdate(
+          { student: userId, test: testId },
+          { isSuspended: false }
+        );
+      } catch (err) {
+        console.error('Error removing suspension from DB:', err);
+      }
+
       // Get student's socket ID from the active connection maps
       const studentSocketId = activeSockets.get(userId);
       if (studentSocketId) {
