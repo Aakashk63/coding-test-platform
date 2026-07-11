@@ -29,7 +29,7 @@ const generateUniqueTestId = async () => {
  */
 export const createTest = async (req, res) => {
   try {
-    const { title, description, duration, startTime, endTime, allowedLanguages, questions } = req.body;
+    const { title, description, duration, startTime, endTime, allowedLanguages, questions, maxStrikes } = req.body;
 
     if (!title || !duration || !startTime || !endTime) {
       return res.status(400).json({ error: 'Title, duration, startTime, and endTime are required' });
@@ -42,6 +42,7 @@ export const createTest = async (req, res) => {
       title,
       description,
       duration: Number(duration),
+      maxStrikes: maxStrikes !== undefined ? Number(maxStrikes) : 3,
       startTime: new Date(startTime),
       endTime: new Date(endTime),
       allowedLanguages: allowedLanguages || ['python', 'java'],
@@ -260,7 +261,7 @@ export const deleteTest = async (req, res) => {
 export const updateTest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, duration, startTime, endTime, allowedLanguages, questions } = req.body;
+    const { title, description, duration, startTime, endTime, allowedLanguages, questions, maxStrikes } = req.body;
 
     if (!title || !duration || !startTime || !endTime) {
       return res.status(400).json({ error: 'Title, duration, startTime, and endTime are required' });
@@ -272,6 +273,7 @@ export const updateTest = async (req, res) => {
         title,
         description,
         duration: Number(duration),
+        maxStrikes: maxStrikes !== undefined ? Number(maxStrikes) : 3,
         startTime: new Date(startTime),
         endTime: new Date(endTime),
         allowedLanguages: allowedLanguages || ['python', 'java'],

@@ -13,6 +13,7 @@ export default function CreateTest() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(60);
+  const [maxStrikes, setMaxStrikes] = useState(3);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [allowedLanguages, setAllowedLanguages] = useState(['python', 'java']);
@@ -42,6 +43,7 @@ export default function CreateTest() {
         setTitle(data.title);
         setDescription(data.description || '');
         setDuration(data.duration);
+        setMaxStrikes(data.maxStrikes || 3);
         
         // Format ISO dates back to YYYY-MM-DDTHH:MM for local picker
         if (data.startTime) {
@@ -176,6 +178,7 @@ export default function CreateTest() {
           title,
           description,
           duration,
+          maxStrikes,
           startTime: new Date(startTime).toISOString(),
           endTime: new Date(endTime).toISOString(),
           allowedLanguages,
@@ -249,12 +252,15 @@ export default function CreateTest() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 font-mono text-slate-500">Strikes Limit</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Strikes Limit</label>
                   <input
-                    type="text"
-                    disabled
-                    value="3 (Strict)"
-                    className="w-full bg-slate-900/50 border border-slate-850 text-slate-500 rounded-lg p-2.5 text-sm cursor-not-allowed"
+                    type="number"
+                    min="1"
+                    max="10"
+                    required
+                    value={maxStrikes}
+                    onChange={(e) => setMaxStrikes(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-slate-200 outline-none text-sm"
                   />
                 </div>
               </div>

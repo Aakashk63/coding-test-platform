@@ -61,8 +61,8 @@ export const recordViolation = async (req, res) => {
       timestamp: new Date(),
     });
 
-    // 4. Auto-submission rule: 3 strikes limit
-    const STRIKE_LIMIT = 3;
+    // 4. Auto-submission rule: dynamic strikes limit
+    const STRIKE_LIMIT = test.maxStrikes !== undefined ? Number(test.maxStrikes) : 3;
     if (strikes >= STRIKE_LIMIT) {
       console.log(`🚨 Student ${userId} reached violation limit (${strikes}/${STRIKE_LIMIT}). Auto-submitting exam.`);
 
@@ -70,7 +70,7 @@ export const recordViolation = async (req, res) => {
       log.events.push({
         eventType: 'AUTO_SUBMITTED',
         timestamp: new Date(),
-        proof: 'System: Auto-submitted due to 3 violation strikes.',
+        proof: `System: Auto-submitted due to ${STRIKE_LIMIT} violation strikes.`,
       });
       await log.save();
 
@@ -78,7 +78,7 @@ export const recordViolation = async (req, res) => {
       if (studentSocketId) {
         io.to(studentSocketId).emit('force_auto_submit', {
           reason: 'PROCTOR_AUTO_SUBMIT',
-          message: 'Your exam has been automatically submitted due to multiple proctoring violations.',
+          message: `Your exam has been automatically submitted due to reaching the limit of ${STRIKE_LIMIT} proctoring violations.`,
         });
       }
 

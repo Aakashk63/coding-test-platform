@@ -354,7 +354,8 @@ export default function LiveMonitoring() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {candidatesArr.map((student) => {
-                  const strikeLimit = 3;
+                  const activeTest = tests.find(t => t._id === selectedTestId);
+                  const strikeLimit = activeTest?.maxStrikes || 3;
                   const isBlocked = student.strikes >= strikeLimit || student.status === 'AUTO_SUBMITTED';
 
                   return (

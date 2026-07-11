@@ -102,6 +102,10 @@ const testSchema = new mongoose.Schema(
       default: ['python', 'java'],
     },
     questions: [questionSchema],
+    maxStrikes: {
+      type: Number,
+      default: 3,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

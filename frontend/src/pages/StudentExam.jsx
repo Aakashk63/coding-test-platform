@@ -206,7 +206,7 @@ export default function StudentExam() {
   const handleViolationAlert = ({ eventType, strikes }) => {
     setNotification({
       type: 'warning',
-      message: `Security violation detected: [${eventType}]. This is strike ${strikes} of 3. Standard assessment rules apply.`,
+      message: `Security violation detected: [${eventType}]. This is strike ${strikes} of ${test?.maxStrikes || 3}. Standard assessment rules apply.`,
     });
     
     // Clear notification after 6 seconds
