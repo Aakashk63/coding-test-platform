@@ -126,6 +126,28 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
     }
   };
 
+  const captureSnapshot = () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return null;
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+      
+      const ctx = canvas.getContext('2d');
+      // Mirror canvas to match the candidate webcam preview mirror styling
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.55);
+    } catch (e) {
+      console.error('Failed to capture canvas snapshot:', e);
+      return null;
+    }
+  };
+
   // Core visual verification loop
   useEffect(() => {
     if (!enabled || !cameraActive || !modelsLoaded) return;
@@ -140,9 +162,42 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
           const predictions = await faceModelRef.current.estimateFaces(video, false);
           
           if (predictions.length === 0) {
-            await triggerViolation('NO_FACE', 'No face detected in webcam stream.');
+            const proofImg = captureSnapshot();
+            await triggerViolation('NO_FACE', proofImg || 'No face detected in webcam stream.');
           } else if (predictions.length > 1) {
-            await triggerViolation('MULTIPLE_FACES', `Multiple faces (${predictions.length}) detected in webcam.`);
+            const proofImg = captureSnapshot();
+            await triggerViolation('MULTIPLE_FACES', proofImg || `Multiple faces (${predictions.length}) detected in webcam.`);
+          } else {
+            // Check head posture / looking away/down
+            const p = predictions[0];
+            const landmarks = p.landmarks;
+            if (landmarks && landmarks.length >= 4) {
+              const rightEyeY = landmarks[0][1];
+              const leftEyeY = landmarks[1][1];
+              const rightEyeX = landmarks[0][0];
+              const leftEyeX = landmarks[1][0];
+              const noseY = landmarks[2][1];
+              const noseX = landmarks[2][0];
+              const mouthY = landmarks[3][1];
+
+              const avgEyeY = (leftEyeY + rightEyeY) / 2;
+              const eyeCenter = (leftEyeX + rightEyeX) / 2;
+              
+              const box = p.box; // [x1, y1, x2, y2]
+              const height = box[3] - box[1];
+              const width = box[2] - box[0];
+              
+              const eyeNoseRatio = (noseY - avgEyeY) / height;
+              const horizontalDeviation = Math.abs(noseX - eyeCenter) / width;
+
+              if (eyeNoseRatio < 0.08) {
+                const proofImg = captureSnapshot();
+                await triggerViolation('LOOKING_DOWN', proofImg || 'Student is looking down away from the screen.');
+              } else if (horizontalDeviation > 0.12) {
+                const proofImg = captureSnapshot();
+                await triggerViolation('LOOKING_AWAY', proofImg || 'Student is looking away from the screen.');
+              }
+            }
           }
         }
 
@@ -155,7 +210,8 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
 
           if (cellPhone) {
             setPhoneDetected(true);
-            await triggerViolation('PHONE_DETECTED', `Mobile phone detected with ${(cellPhone.score * 100).toFixed(0)}% confidence.`);
+            const proofImg = captureSnapshot();
+            await triggerViolation('PHONE_DETECTED', proofImg || `Mobile phone detected.`);
           } else {
             setPhoneDetected(false);
           }

@@ -120,15 +120,17 @@ export default function LiveMonitoring() {
           { eventType, proof, timestamp: new Date(timestamp) },
         ];
 
+        const localStrikes = strikes !== undefined ? strikes : current.strikes + 1;
+
         return {
           ...prev,
           [userId]: {
             ...current,
             name: name || current.name,
             email: email || current.email,
-            strikes,
+            strikes: localStrikes,
             violations: updatedViolations,
-            status: strikes >= 3 ? 'AUTO_SUBMITTED' : 'IN_PROGRESS',
+            status: localStrikes >= 3 ? 'AUTO_SUBMITTED' : 'IN_PROGRESS',
             lastActive: new Date(timestamp),
           },
         };
@@ -136,7 +138,8 @@ export default function LiveMonitoring() {
 
       logEvent({
         type: 'VIOLATION',
-        message: `${name || 'Candidate'} triggered strike [${eventType}]: ${proof}`,
+        message: `${name || 'Candidate'} triggered strike [${eventType}]`,
+        proof: proof,
         timestamp: new Date(timestamp),
       });
     });
@@ -365,6 +368,36 @@ export default function LiveMonitoring() {
                         </div>
                       </div>
 
+                      {/* Security Timeline */}
+                      {student.violations && student.violations.length > 0 && (
+                        <div className="mb-3 border-t border-slate-850/80 pt-3">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Security Timeline</span>
+                          <div className="max-h-24 overflow-y-auto space-y-1 pr-1 font-sans">
+                            {student.violations.map((v, vIdx) => (
+                              <div key={vIdx} className="bg-slate-950/80 border border-slate-900 rounded p-1 flex justify-between items-center text-[10px]">
+                                <div className="truncate pr-2 text-slate-350">
+                                  <span className="font-bold text-rose-400">[{v.eventType}]</span>
+                                  {v.proof && !v.proof.startsWith('data:image/') && <span className="text-[9px] text-slate-500 ml-1">- {v.proof}</span>}
+                                </div>
+                                {v.proof && v.proof.startsWith('data:image/') ? (
+                                  <a 
+                                    href={v.proof} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="shrink-0 w-8 h-6 rounded overflow-hidden border border-slate-850 hover:border-blue-500 transition block bg-slate-900"
+                                    title="Click to view full image snapshot"
+                                  >
+                                    <img src={v.proof} alt="snap" className="w-full h-full object-cover" />
+                                  </a>
+                                ) : (
+                                  <span className="text-[9px] text-slate-600 shrink-0">{new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Bottom Panel Status */}
                       <div className="flex justify-between items-center border-t border-slate-850 pt-3">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Exam Status:</span>
@@ -420,7 +453,19 @@ export default function LiveMonitoring() {
                         {evt.timestamp.toLocaleTimeString()}
                       </span>
                     </div>
-                    <p className="text-slate-350 leading-relaxed">{evt.message}</p>
+                    <p className="text-slate-350 leading-relaxed font-semibold">{evt.message}</p>
+                    {evt.proof && evt.proof.startsWith('data:image/') ? (
+                      <div className="mt-2 relative group w-full overflow-hidden rounded-lg border border-slate-850 bg-slate-950 flex items-center justify-center p-1">
+                        <img 
+                          src={evt.proof} 
+                          alt="Violation Proof" 
+                          className="w-full h-auto max-h-32 object-contain transition-transform group-hover:scale-105" 
+                        />
+                        <span className="absolute bottom-1 right-1 bg-rose-950/80 border border-rose-500/30 text-rose-300 text-[8px] font-black uppercase px-1 rounded">Visual Proof</span>
+                      </div>
+                    ) : (
+                      evt.proof && <p className="text-slate-500 text-[10px] mt-1 italic">{evt.proof}</p>
+                    )}
                   </div>
                 ))
               )}

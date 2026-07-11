@@ -23,6 +23,8 @@ const proctoringLogSchema = new mongoose.Schema(
             'MULTIPLE_FACES',
             'PHONE_DETECTED',
             'AUTO_SUBMITTED',
+            'LOOKING_DOWN',
+            'LOOKING_AWAY',
           ],
           required: true,
         },

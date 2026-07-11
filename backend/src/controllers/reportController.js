@@ -120,6 +120,8 @@ export const getHTMLReport = async (req, res) => {
         });
       });
 
+      const rawEvents = events || [];
+
       return {
         name: sub.student.name,
         email: sub.student.email,
@@ -129,6 +131,11 @@ export const getHTMLReport = async (req, res) => {
         failedCases: sub.failedCases,
         submittedType: sub.submittedType,
         violations: violationsCount,
+        violationsList: rawEvents.map(e => ({
+          eventType: e.eventType,
+          proof: e.proof || '',
+          timestamp: new Date(e.timestamp).toLocaleTimeString()
+        })),
         time: new Date(sub.createdAt).toLocaleString(),
         solutions,
       };
@@ -237,7 +244,7 @@ export const getHTMLReport = async (req, res) => {
           </div>
         </div>
 
-        <div class="space-y-6">
+        <div class="space-y-6 mb-6">
           ${r.solutions.map(sol => `
             <div>
               <h4 class="text-sm font-semibold text-slate-300 mb-2">Question: ${sol.title}</h4>
@@ -245,6 +252,31 @@ export const getHTMLReport = async (req, res) => {
             </div>
           `).join('')}
         </div>
+
+        ${r.violationsList && r.violationsList.length > 0 ? `
+          <div class="border-t border-slate-700/60 pt-4">
+            <h4 class="text-sm font-semibold text-slate-300 mb-3">Security Violation Log</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              ${r.violationsList.map(v => `
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-xs space-y-2">
+                  <div class="flex justify-between items-center">
+                    <span class="px-1.5 py-0.5 rounded font-black text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                      ${v.eventType}
+                    </span>
+                    <span class="text-[10px] text-slate-500 font-mono">${v.timestamp}</span>
+                  </div>
+                  ${v.proof && v.proof.startsWith('data:image/') ? `
+                    <div class="relative w-full rounded border border-slate-800 overflow-hidden bg-slate-950 flex items-center justify-center p-1">
+                      <img src="${v.proof}" alt="Proof" class="w-full h-auto max-h-32 object-contain" />
+                    </div>
+                  ` : `
+                    <p class="text-slate-400 text-[10px] italic leading-tight">${v.proof || 'No description'}</p>
+                  `}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
       </div>
     `).join('')}
 
