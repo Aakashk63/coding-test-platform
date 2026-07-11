@@ -17,6 +17,7 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
   const objectModelRef = useRef(null);
   const intervalRef = useRef(null);
   const strikeCountRef = useRef(0);
+  const streamRef = useRef(null);
 
   const socketRef = useRef(socket);
   const userNameRef = useRef(userName);
@@ -71,6 +72,7 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
         audio: true,
       });
       setStream(mediaStream);
+      streamRef.current = mediaStream;
       setCameraActive(true);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -86,10 +88,11 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
 
   // Stop Camera
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
+    setStream(null);
     setCameraActive(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -215,13 +218,13 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
                   violationStartRef.current = Date.now();
                 } else {
                   const duration = Date.now() - violationStartRef.current;
-                  if (duration >= 6000 && !pausedTriggeredRef.current) {
+                  if (duration >= 4000 && !pausedTriggeredRef.current) {
                     pausedTriggeredRef.current = true;
                     const proofImg = captureSnapshot();
                     const infractionType = (eyeNoseRatio < 0.10) ? 'LOOKING_DOWN' : 'LOOKING_AWAY';
                     
                     // Log suspicious posture and request pause
-                    await triggerViolation('SUSPICIOUS_LOOKING', proofImg || `Student stayed in suspicious posture (${infractionType}) for more than 6s.`);
+                    await triggerViolation('SUSPICIOUS_LOOKING', proofImg || `Student stayed in suspicious posture (${infractionType}) for more than 4s.`);
                     
                     if (socketRef.current && socketRef.current.connected) {
                       socketRef.current.emit('pause_candidate_exam', { testId, userId });

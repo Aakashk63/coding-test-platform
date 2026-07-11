@@ -550,7 +550,7 @@ export default function LiveMonitoring() {
                             onClick={() => handleResumeCandidate(student.userId)}
                             className="w-full mt-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-[10px] uppercase tracking-widest py-1.5 rounded-lg border border-blue-500/30 transition flex items-center justify-center gap-1 shadow-md shrink-0 cursor-pointer"
                           >
-                            <span>Resume Candidate Exam</span>
+                            <span>Continue Candidate Exam</span>
                           </button>
                         )}
                       </div>

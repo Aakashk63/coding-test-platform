@@ -24,6 +24,11 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const [selectedSub, setSelectedSub] = useState(null);
+  const [proctorLogs, setProctorLogs] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState('');
+
   // Fetch tests dropdown
   useEffect(() => {
     const fetchTests = async () => {
@@ -66,6 +71,36 @@ export default function ReportsPage() {
 
     fetchSubmissions();
   }, [selectedTestId]);
+
+  // Fetch proctor logs when selected submission changes
+  useEffect(() => {
+    if (!selectedSub) {
+      setProctorLogs([]);
+      return;
+    }
+
+    const fetchLogs = async () => {
+      setModalLoading(true);
+      setModalError('');
+      try {
+        const res = await fetch(`${API_URL}/proctors/admin/test/${selectedTestId}/student/${selectedSub.student._id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setProctorLogs(data.events || []);
+        } else {
+          throw new Error(data.error || 'Failed to load proctor logs');
+        }
+      } catch (err) {
+        setModalError(err.message);
+      } finally {
+        setModalLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, [selectedSub, selectedTestId]);
 
   const handleDownloadCSV = () => {
     if (!selectedTestId) return;
@@ -232,14 +267,25 @@ export default function ReportsPage() {
                         {new Date(sub.createdAt).toLocaleString()}
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => handleAllowRetest(sub._id, sub.student.name)}
-                          className="bg-rose-600/10 border border-rose-500/25 hover:bg-rose-600/25 text-rose-450 hover:text-rose-350 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ml-auto"
-                          title="Allow retest"
-                        >
-                          <Trash2 size={12} />
-                          <span>Allow Retest</span>
-                        </button>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => setSelectedSub(sub)}
+                            className="bg-blue-600/10 border border-blue-500/25 hover:bg-blue-600/25 text-blue-400 hover:text-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                            title="Review submission details and proctor logs"
+                          >
+                            <FileText size={12} />
+                            <span>Review Logs</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleAllowRetest(sub._id, sub.student.name)}
+                            className="bg-rose-600/10 border border-rose-500/25 hover:bg-rose-600/25 text-rose-450 hover:text-rose-350 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                            title="Allow retest"
+                          >
+                            <Trash2 size={12} />
+                            <span>Allow Retest</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -250,6 +296,116 @@ export default function ReportsPage() {
         </div>
 
       </div>
+
+      {/* Candidate Detail & Proctoring Inspector Modal */}
+      {selectedSub && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center z-50 p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-800 flex justify-between items-start bg-slate-950/30">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-100">{selectedSub.student.name} Details</h3>
+                <p className="text-xs text-slate-500 mt-1">{selectedSub.student.email} • Score: <span className="text-emerald-400 font-bold">{selectedSub.score} PTS</span></p>
+              </div>
+              <button 
+                onClick={() => setSelectedSub(null)}
+                className="text-slate-400 hover:text-slate-200 text-sm font-semibold p-1 hover:bg-slate-850 rounded transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* SECTION 1: Submissions & Answers */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Candidate Code Submissions</h4>
+                <div className="space-y-4">
+                  {(() => {
+                    const testObj = tests.find(t => t._id === selectedTestId);
+                    if (!testObj) return <div className="text-xs text-slate-500">No test data.</div>;
+                    
+                    return testObj.questions.map((q) => {
+                      const qIdStr = q._id.toString();
+                      const codeMap = selectedSub.code || {};
+                      const rawCode = codeMap.get ? codeMap.get(qIdStr) : codeMap[qIdStr];
+
+                      return (
+                        <div key={q._id} className="bg-slate-950/40 border border-slate-850 p-4 rounded-xl space-y-2">
+                          <span className="text-[10px] font-black text-blue-400 uppercase">{q.title}</span>
+                          <pre className="bg-slate-950 border border-slate-900 p-3 rounded font-mono text-[11px] text-emerald-400 overflow-x-auto whitespace-pre-wrap max-h-48 leading-relaxed">
+                            {rawCode || 'No solution submitted.'}
+                          </pre>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* SECTION 2: AI Proctoring Log with snapshot proof */}
+              <div className="border-t border-slate-850 pt-5 space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Webcam Security Violations Log</h4>
+                
+                {modalLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-500 italic py-4">
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                    <span>Loading proctoring violation logs & snapshots...</span>
+                  </div>
+                ) : modalError ? (
+                  <div className="text-xs text-rose-450 py-2">{modalError}</div>
+                ) : proctorLogs.length === 0 ? (
+                  <div className="text-xs text-slate-500 italic py-4 bg-slate-950/20 border border-slate-850/50 rounded-xl text-center">
+                    No proctoring violation strikes recorded for this candidate.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {proctorLogs.map((evt, idx) => (
+                      <div key={idx} className="bg-slate-950/40 border border-slate-850 p-3.5 rounded-xl flex flex-col justify-between space-y-3">
+                        <div className="flex justify-between items-start">
+                          <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">
+                            {evt.eventType}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {new Date(evt.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+
+                        {evt.proof && evt.proof.startsWith('data:image/') ? (
+                          <div className="aspect-video w-full rounded-lg overflow-hidden border border-slate-850 bg-slate-950 relative group">
+                            <img 
+                              src={evt.proof} 
+                              alt={`${evt.eventType} Proof`} 
+                              className="w-full h-full object-cover" 
+                            />
+                            <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
+                              <span className="text-[9px] text-white bg-slate-900 border border-slate-800 px-2 py-1 rounded shadow-md uppercase tracking-wider font-bold">Webcam Snapshot</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-400 italic bg-slate-950/60 p-2.5 rounded border border-slate-900 leading-normal">
+                            {evt.proof || 'No description provided.'}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-950/60 border-t border-slate-850 flex justify-end">
+              <button 
+                onClick={() => setSelectedSub(null)}
+                className="bg-slate-900 hover:bg-slate-800 text-slate-350 hover:text-slate-200 px-5 py-2 rounded-lg font-bold text-xs transition cursor-pointer border border-slate-800"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
