@@ -173,6 +173,16 @@ export const getStudentTestById = async (req, res) => {
       return res.status(403).json({ error: 'Access denied: Test has already ended.' });
     }
 
+    // Check if student already submitted this exam
+    const existingSubmission = await Submission.findOne({ 
+      student: req.user.id, 
+      test: test._id 
+    });
+
+    if (existingSubmission) {
+      return res.status(403).json({ error: 'You have already submitted this test.' });
+    }
+
     // Check if student is currently suspended or auto-submitted
     const proctorLog = await ProctoringLog.findOne({ student: req.user.id, test: test._id });
     if (proctorLog) {
