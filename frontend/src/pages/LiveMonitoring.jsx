@@ -360,6 +360,9 @@ export default function LiveMonitoring() {
                   const activeTest = tests.find(t => t._id === selectedTestId);
                   const strikeLimit = activeTest?.maxStrikes || 3;
                   const isBlocked = student.strikes >= strikeLimit || student.status === 'AUTO_SUBMITTED';
+                  const latestPhotoViolation = student.violations
+                    ? [...student.violations].reverse().find(v => v.proof && v.proof.startsWith('data:image/'))
+                    : null;
 
                   return (
                     <div
@@ -395,6 +398,21 @@ export default function LiveMonitoring() {
                           )}
                         </div>
                       </div>
+
+                      {/* Prominent Latest Violation Image Preview */}
+                      {latestPhotoViolation && (
+                        <div className="mb-3 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 aspect-video relative group shadow-inner">
+                          <img 
+                            src={latestPhotoViolation.proof} 
+                            alt="Latest Violation Proof" 
+                            className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+                          <div className="absolute bottom-2 left-2 bg-rose-600/90 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-md flex items-center gap-1 uppercase font-mono tracking-wider">
+                            <AlertOctagon size={10} />
+                            <span>Latest Violation: {latestPhotoViolation.eventType}</span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Strikes Section */}
                       <div className="mb-4 bg-slate-900/50 p-2.5 rounded-lg border border-slate-850/80">

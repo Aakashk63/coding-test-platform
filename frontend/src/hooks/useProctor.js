@@ -203,7 +203,7 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
               const eyeNoseRatio = (noseY - avgEyeY) / height;
               const horizontalDeviation = Math.abs(noseX - eyeCenter) / width;
 
-              if (eyeNoseRatio < 0.08) {
+              if (eyeNoseRatio < 0.10) {
                 const proofImg = captureSnapshot();
                 await triggerViolation('LOOKING_DOWN', proofImg || 'Student is looking down away from the screen.');
               } else if (horizontalDeviation > 0.12) {
