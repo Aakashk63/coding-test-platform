@@ -25,9 +25,11 @@ export default function ReportsPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [selectedSub, setSelectedSub] = useState(null);
+  const [selectedSubLog, setSelectedSubLog] = useState(null);
   const [proctorLogs, setProctorLogs] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [releasing, setReleasing] = useState(false);
 
   // Fetch tests dropdown
   useEffect(() => {
@@ -83,12 +85,14 @@ export default function ReportsPage() {
       setModalLoading(true);
       setModalError('');
       try {
-        const res = await fetch(`${API_URL}/proctors/admin/test/${selectedTestId}/student/${selectedSub.student._id}`, {
+        const res = await fetch(`${API_URL}/proctor/admin/test/${selectedTestId}/student/${selectedSub.student._id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
         const data = await res.json();
         if (res.ok) {
           setProctorLogs(data.events || []);
+          // Save the full log object to check isSuspended state
+          setSelectedSubLog(data);
         } else {
           throw new Error(data.error || 'Failed to load proctor logs');
         }
@@ -101,6 +105,37 @@ export default function ReportsPage() {
 
     fetchLogs();
   }, [selectedSub, selectedTestId]);
+
+  const handleReleaseSuspension = async () => {
+    if (!selectedSub || !selectedTestId) return;
+    setReleasing(true);
+    try {
+      const res = await fetch(`${API_URL}/proctor/admin/test/${selectedTestId}/student/${selectedSub.student._id}/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Assessment suspension has been successfully released.');
+        setSelectedSubLog(prev => prev ? { ...prev, isSuspended: false } : null);
+      } else {
+        throw new Error(data.error || 'Failed to release suspension.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Error releasing suspension');
+    } finally {
+      setReleasing(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setSelectedSub(null);
+    setSelectedSubLog(null);
+  };
 
   const handleDownloadCSV = () => {
     if (!selectedTestId) return;
@@ -308,7 +343,7 @@ export default function ReportsPage() {
                 <p className="text-xs text-slate-500 mt-1">{selectedSub.student.email} • Score: <span className="text-emerald-400 font-bold">{selectedSub.score} PTS</span></p>
               </div>
               <button 
-                onClick={() => setSelectedSub(null)}
+                onClick={handleCloseModal}
                 className="text-slate-400 hover:text-slate-200 text-sm font-semibold p-1 hover:bg-slate-850 rounded transition cursor-pointer"
               >
                 ✕
@@ -345,7 +380,18 @@ export default function ReportsPage() {
 
               {/* SECTION 2: AI Proctoring Log with snapshot proof */}
               <div className="border-t border-slate-850 pt-5 space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Webcam Security Violations Log</h4>
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Webcam Security Violations Log</h4>
+                  {selectedSubLog && selectedSubLog.isSuspended && (
+                    <button
+                      onClick={handleReleaseSuspension}
+                      disabled={releasing}
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-lg transition shadow-md cursor-pointer"
+                    >
+                      {releasing ? 'Releasing...' : 'Release Suspension'}
+                    </button>
+                  )}
+                </div>
                 
                 {modalLoading ? (
                   <div className="flex items-center gap-2 text-xs text-slate-500 italic py-4">
@@ -397,7 +443,7 @@ export default function ReportsPage() {
             {/* Modal Footer */}
             <div className="p-4 bg-slate-950/60 border-t border-slate-850 flex justify-end">
               <button 
-                onClick={() => setSelectedSub(null)}
+                onClick={handleCloseModal}
                 className="bg-slate-900 hover:bg-slate-800 text-slate-350 hover:text-slate-200 px-5 py-2 rounded-lg font-bold text-xs transition cursor-pointer border border-slate-800"
               >
                 Close Details

@@ -134,3 +134,37 @@ export const getStudentProctoringLogs = async (req, res) => {
     res.status(500).json({ error: 'Server error retrieving proctoring logs' });
   }
 };
+
+/**
+ * REST Endpoint for admin to resume/release exam suspension
+ */
+export const resumeStudentExam = async (req, res) => {
+  try {
+    const { testId, studentId } = req.params;
+    
+    const log = await ProctoringLog.findOneAndUpdate(
+      { student: studentId, test: testId },
+      { isSuspended: false },
+      { new: true }
+    );
+
+    // Emit live socket event if candidate socket is active
+    const io = getIO();
+    const studentSocketId = getSocketIdByUserId(studentId);
+    if (studentSocketId) {
+      io.to(studentSocketId).emit('resume_exam', {
+        testId,
+        message: 'Your exam access has been restored by the administrator. You may continue.'
+      });
+    }
+
+    // Broadcast update to monitoring dashboard
+    const roomName = `test_${testId}`;
+    io.to(roomName).emit('student_resumed', { userId: studentId, timestamp: new Date() });
+
+    res.status(200).json({ message: 'Exam resumed successfully', isSuspended: false });
+  } catch (error) {
+    console.error('Resume student exam controller error:', error);
+    res.status(500).json({ error: 'Server error resuming exam access' });
+  }
+};

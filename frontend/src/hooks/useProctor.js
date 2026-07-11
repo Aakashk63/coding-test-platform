@@ -218,13 +218,13 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
                   violationStartRef.current = Date.now();
                 } else {
                   const duration = Date.now() - violationStartRef.current;
-                  if (duration >= 4000 && !pausedTriggeredRef.current) {
+                  if (duration >= 3000 && !pausedTriggeredRef.current) {
                     pausedTriggeredRef.current = true;
                     const proofImg = captureSnapshot();
                     const infractionType = (eyeNoseRatio < 0.10) ? 'LOOKING_DOWN' : 'LOOKING_AWAY';
                     
                     // Log suspicious posture and request pause
-                    await triggerViolation('SUSPICIOUS_LOOKING', proofImg || `Student stayed in suspicious posture (${infractionType}) for more than 4s.`);
+                    await triggerViolation('SUSPICIOUS_LOOKING', proofImg || `Student stayed in suspicious posture (${infractionType}) for more than 3s.`);
                     
                     if (socketRef.current && socketRef.current.connected) {
                       socketRef.current.emit('pause_candidate_exam', { testId, userId });
@@ -255,10 +255,10 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
         if (objectModelRef.current) {
           const predictions = await objectModelRef.current.detect(video);
           const cellPhone = predictions.find(
-            (p) => (p.class === 'cell phone' || p.class === 'remote') && p.score > 0.35
+            (p) => (p.class === 'cell phone' || p.class === 'remote') && p.score > 0.25
           );
           const cameraDevice = predictions.find(
-            (p) => p.class === 'camera' && p.score > 0.35
+            (p) => p.class === 'camera' && p.score > 0.25
           );
 
           if (cellPhone || cameraDevice) {

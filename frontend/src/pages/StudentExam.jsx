@@ -469,7 +469,7 @@ export default function StudentExam() {
   }
 
   if (error) {
-    const isViolationBlocked = error.includes('cross the violation') || error.includes('contact your mentor');
+    const isViolationBlocked = error.includes('cross the violation') || error.includes('contact your dt mentor');
 
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-6 text-center animate-fadeIn">
@@ -540,9 +540,9 @@ export default function StudentExam() {
             <div className="inline-flex items-center justify-center p-3 bg-rose-500/10 text-rose-400 rounded-2xl border border-rose-500/20 mb-2">
               <Lock size={32} className="animate-pulse" />
             </div>
-            <h2 className="text-xl font-black text-slate-100 tracking-tight">Assessment Suspended</h2>
+             <h2 className="text-xl font-black text-slate-100 tracking-tight">Assessment Suspended</h2>
             <p className="text-sm text-rose-400 font-bold leading-relaxed border-t border-b border-slate-800/80 py-4 my-2">
-              Please contact your mentor you cant continue this exam because you cross the violation 
+              contact your dt mentor to attend the test 
             </p>
           </div>
         </div>
