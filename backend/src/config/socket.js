@@ -22,7 +22,12 @@ export const initSocket = (server) => {
       console.log(`🔌 User [${userId}] (${name}) joined room [${roomName}] as [${role}]`);
 
       if (role === 'STUDENT') {
-        examSessions.set(`${testId}:${userId}`, socket.id);
+        examSessions.set(`${testId}:${userId}`, {
+          socketId: socket.id,
+          name: name || 'Student User',
+          email: email || '',
+          joinedAt: new Date()
+        });
         activeSockets.set(userId, socket.id);
 
         // Notify admins in the room
@@ -33,6 +38,21 @@ export const initSocket = (server) => {
           socketId: socket.id,
           timestamp: new Date(),
         });
+      } else if (role === 'ADMIN') {
+        // Collect currently active students in this room
+        const activeStudentsList = [];
+        for (const [key, session] of examSessions.entries()) {
+          const [sTestId, sUserId] = key.split(':');
+          if (sTestId === testId && session) {
+            activeStudentsList.push({
+              userId: sUserId,
+              name: session.name,
+              email: session.email,
+              joinedAt: session.joinedAt
+            });
+          }
+        }
+        socket.emit('active_students', { students: activeStudentsList });
       }
     });
 
@@ -56,8 +76,8 @@ export const initSocket = (server) => {
       console.log(`🔌 Client disconnected: ${socket.id}`);
       
       // Clean up maps
-      for (const [key, value] of examSessions.entries()) {
-        if (value === socket.id) {
+      for (const [key, session] of examSessions.entries()) {
+        if (session && session.socketId === socket.id) {
           const [testId, userId] = key.split(':');
           examSessions.delete(key);
           socket.to(`test_${testId}`).emit('student_left', { userId });
@@ -88,5 +108,6 @@ export const getSocketIdByUserId = (userId) => {
 };
 
 export const getSocketIdByExamSession = (testId, userId) => {
-  return examSessions.get(`${testId}:${userId}`);
+  const session = examSessions.get(`${testId}:${userId}`);
+  return session ? session.socketId : undefined;
 };

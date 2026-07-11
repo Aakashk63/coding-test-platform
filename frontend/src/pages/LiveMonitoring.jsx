@@ -75,6 +75,31 @@ export default function LiveMonitoring() {
       setSocketConnected(false);
     });
 
+    // Event listener: Active students list when Admin connects
+    socket.on('active_students', ({ students }) => {
+      setCandidates((prev) => {
+        const updated = { ...prev };
+        students.forEach((student) => {
+          const userId = student.userId;
+          if (!updated[userId]) {
+            updated[userId] = {
+              userId,
+              name: student.name || 'Student User',
+              email: student.email || '',
+              strikes: 0,
+              cameraActive: true,
+              status: 'IN_PROGRESS',
+              violations: [],
+              lastActive: new Date(student.joinedAt || Date.now()),
+            };
+          } else {
+            updated[userId].cameraActive = true;
+          }
+        });
+        return updated;
+      });
+    });
+
     // Event listener: Student joined
     socket.on('student_joined', ({ userId, name, email, timestamp }) => {
       setCandidates((prev) => {
