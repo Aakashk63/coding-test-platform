@@ -5,6 +5,7 @@ import {
   submitExam,
   getAdminSubmissions,
   getStudentSubmissionStatus,
+  allowRetest,
 } from '../controllers/submissionController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { codeExecutionLimiter } from '../middleware/rateLimiter.js';
@@ -19,5 +20,6 @@ router.post('/submit-exam', requireAuth, submitExam);
 // Submission status retrieval
 router.get('/admin/test/:testId', requireAuth, requireRole(['ADMIN']), getAdminSubmissions);
 router.get('/student/test/:testId', requireAuth, getStudentSubmissionStatus);
+router.delete('/admin/:submissionId/retest', requireAuth, requireRole(['ADMIN']), allowRetest);
 
 export default router;

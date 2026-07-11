@@ -9,7 +9,8 @@ import {
   Download, 
   ExternalLink,
   Users,
-  Search
+  Search,
+  Trash2
 } from 'lucide-react';
 
 export default function ReportsPage() {
@@ -76,6 +77,33 @@ export default function ReportsPage() {
   const handleOpenPrintHTML = () => {
     if (!selectedTestId) return;
     window.open(`${API_URL}/reports/test/${selectedTestId}/html`, '_blank');
+  };
+
+  const handleAllowRetest = async (submissionId, studentName) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to allow a retest for ${studentName}? This will permanently delete their current exam submission, code entries, and proctoring violation logs.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${API_URL}/submissions/admin/${submissionId}/retest`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to grant retest access.');
+      }
+
+      setSubmissions(prev => prev.filter(sub => sub._id !== submissionId));
+      alert('Retest access granted. Previous student attempt records have been cleared.');
+    } catch (error) {
+      console.error('Allow retest error:', error);
+      alert(error.message || 'Error connecting to the server to reset attempt.');
+    }
   };
 
   const filteredSubmissions = submissions.filter(
@@ -180,6 +208,7 @@ export default function ReportsPage() {
                     <th className="pb-3 px-4">Passed cases</th>
                     <th className="pb-3 px-4">Submission Type</th>
                     <th className="pb-3 px-4">Date</th>
+                    <th className="pb-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-850/60 text-xs">
@@ -201,6 +230,16 @@ export default function ReportsPage() {
                       </td>
                       <td className="py-3.5 px-4 text-slate-500">
                         {new Date(sub.createdAt).toLocaleString()}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => handleAllowRetest(sub._id, sub.student.name)}
+                          className="bg-rose-600/10 border border-rose-500/25 hover:bg-rose-600/25 text-rose-450 hover:text-rose-350 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ml-auto"
+                          title="Allow retest"
+                        >
+                          <Trash2 size={12} />
+                          <span>Allow Retest</span>
+                        </button>
                       </td>
                     </tr>
                   ))}

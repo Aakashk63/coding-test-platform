@@ -1,5 +1,6 @@
 import Test from '../models/Test.js';
 import Submission from '../models/Submission.js';
+import ProctoringLog from '../models/ProctoringLog.js';
 import { Queue } from '../config/redis.js';
 
 const codeQueue = new Queue('code_queue');
@@ -158,5 +159,32 @@ export const getStudentSubmissionStatus = async (req, res) => {
   } catch (error) {
     console.error('Get student submission status error:', error);
     res.status(500).json({ error: 'Server error retrieving submission status' });
+  }
+};
+
+/**
+ * Admin: Allow student to retake test (delete submission and proctor logs)
+ */
+export const allowRetest = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    const { student, test } = submission;
+
+    // Delete submission
+    await Submission.findByIdAndDelete(submissionId);
+
+    // Delete proctor logs
+    await ProctoringLog.deleteMany({ student, test });
+
+    res.status(200).json({ message: 'Retest access granted. Previous records cleared successfully.' });
+  } catch (error) {
+    console.error('Allow retest error:', error);
+    res.status(500).json({ error: 'Server error granting retest access' });
   }
 };
