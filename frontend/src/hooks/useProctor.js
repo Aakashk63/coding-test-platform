@@ -38,10 +38,10 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
       try {
         await tf.ready();
         
-        // Load models in parallel
+        // Load models in parallel using fast lightweight coco base
         const [faceModel, objectModel] = await Promise.all([
           blazeface.load(),
-          cocoSsd.load(),
+          cocoSsd.load({ base: 'lite_mobilenet_v2' }),
         ]);
 
         faceModelRef.current = faceModel;
@@ -218,7 +218,7 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
         if (objectModelRef.current) {
           const predictions = await objectModelRef.current.detect(video);
           const cellPhone = predictions.find(
-            (p) => p.class === 'cell phone' && p.score > 0.42
+            (p) => (p.class === 'cell phone' || p.class === 'remote') && p.score > 0.35
           );
 
           if (cellPhone) {
