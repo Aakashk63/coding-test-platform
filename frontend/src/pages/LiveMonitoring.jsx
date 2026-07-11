@@ -51,6 +51,9 @@ export default function LiveMonitoring() {
   useEffect(() => {
     if (!selectedTestId) return;
 
+    const activeTest = tests.find(t => t._id === selectedTestId);
+    const strikeLimit = activeTest?.maxStrikes || 3;
+
     // Reset current state
     setCandidates({});
     setEventLogs([]);
@@ -157,7 +160,7 @@ export default function LiveMonitoring() {
             email: email || current.email,
             strikes: localStrikes,
             violations: updatedViolations,
-            status: localStrikes >= 3 ? 'AUTO_SUBMITTED' : 'IN_PROGRESS',
+            status: localStrikes >= strikeLimit ? 'AUTO_SUBMITTED' : 'IN_PROGRESS',
             lastActive: new Date(timestamp),
           },
         };

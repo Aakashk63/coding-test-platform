@@ -18,6 +18,18 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
   const intervalRef = useRef(null);
   const strikeCountRef = useRef(0);
 
+  const socketRef = useRef(socket);
+  const userNameRef = useRef(userName);
+  const userEmailRef = useRef(userEmail);
+  const onViolationTriggeredRef = useRef(onViolationTriggered);
+
+  useEffect(() => {
+    socketRef.current = socket;
+    userNameRef.current = userName;
+    userEmailRef.current = userEmail;
+    onViolationTriggeredRef.current = onViolationTriggered;
+  }, [socket, userName, userEmail, onViolationTriggered]);
+
   // Initialize TensorFlow.js and load models
   useEffect(() => {
     if (!enabled) return;
@@ -91,19 +103,20 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
     console.warn(`⚠️ PROCTOR VIOLATION [${eventType}] - Strike count: ${updatedStrikes}`);
 
     // Call callback in the exam view
-    if (onViolationTriggered) {
-      onViolationTriggered({ eventType, strikes: updatedStrikes });
+    if (onViolationTriggeredRef.current) {
+      onViolationTriggeredRef.current({ eventType, strikes: updatedStrikes });
     }
 
     // Emit real-time notification to socket
-    if (socket && socket.connected) {
-      socket.emit('report_violation', {
+    const currentSocket = socketRef.current;
+    if (currentSocket && currentSocket.connected) {
+      currentSocket.emit('report_violation', {
         testId,
         userId,
         eventType,
         proof: proofText || `Violation detected: ${eventType}`,
-        name: userName,
-        email: userEmail,
+        name: userNameRef.current,
+        email: userEmailRef.current,
       });
     }
 
