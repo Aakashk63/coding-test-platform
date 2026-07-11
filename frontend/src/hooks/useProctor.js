@@ -4,7 +4,7 @@ import * as blazeface from '@tensorflow-models/blazeface';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { API_URL } from '../config';
 
-export const useProctor = ({ testId, userId, userName, userEmail, socket, onViolationTriggered, enabled = true }) => {
+export const useProctor = ({ testId, userId, userName, userEmail, socket, onViolationTriggered, onExamPaused, enabled = true }) => {
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [stream, setStream] = useState(null);
   const [strikes, setStrikes] = useState(0);
@@ -22,13 +22,18 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
   const userNameRef = useRef(userName);
   const userEmailRef = useRef(userEmail);
   const onViolationTriggeredRef = useRef(onViolationTriggered);
+  const onExamPausedRef = useRef(onExamPaused);
+
+  const violationStartRef = useRef(null);
+  const pausedTriggeredRef = useRef(false);
 
   useEffect(() => {
     socketRef.current = socket;
     userNameRef.current = userName;
     userEmailRef.current = userEmail;
     onViolationTriggeredRef.current = onViolationTriggered;
-  }, [socket, userName, userEmail, onViolationTriggered]);
+    onExamPausedRef.current = onExamPaused;
+  }, [socket, userName, userEmail, onViolationTriggered, onExamPaused]);
 
   // Initialize TensorFlow.js and load models
   useEffect(() => {
@@ -203,12 +208,41 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
               const eyeNoseRatio = (noseY - avgEyeY) / height;
               const horizontalDeviation = Math.abs(noseX - eyeCenter) / width;
 
-              if (eyeNoseRatio < 0.10) {
-                const proofImg = captureSnapshot();
-                await triggerViolation('LOOKING_DOWN', proofImg || 'Student is looking down away from the screen.');
-              } else if (horizontalDeviation > 0.12) {
-                const proofImg = captureSnapshot();
-                await triggerViolation('LOOKING_AWAY', proofImg || 'Student is looking away from the screen.');
+              const isLookingSuspicious = (eyeNoseRatio < 0.10) || (horizontalDeviation > 0.12);
+
+              if (isLookingSuspicious) {
+                if (!violationStartRef.current) {
+                  violationStartRef.current = Date.now();
+                } else {
+                  const duration = Date.now() - violationStartRef.current;
+                  if (duration >= 6000 && !pausedTriggeredRef.current) {
+                    pausedTriggeredRef.current = true;
+                    const proofImg = captureSnapshot();
+                    const infractionType = (eyeNoseRatio < 0.10) ? 'LOOKING_DOWN' : 'LOOKING_AWAY';
+                    
+                    // Log suspicious posture and request pause
+                    await triggerViolation('SUSPICIOUS_LOOKING', proofImg || `Student stayed in suspicious posture (${infractionType}) for more than 6s.`);
+                    
+                    if (socketRef.current && socketRef.current.connected) {
+                      socketRef.current.emit('pause_candidate_exam', { testId, userId });
+                    }
+                    
+                    if (onExamPausedRef.current) {
+                      onExamPausedRef.current();
+                    }
+                  }
+                }
+
+                if (eyeNoseRatio < 0.10) {
+                  const proofImg = captureSnapshot();
+                  await triggerViolation('LOOKING_DOWN', proofImg || 'Student is looking down away from the screen.');
+                } else {
+                  const proofImg = captureSnapshot();
+                  await triggerViolation('LOOKING_AWAY', proofImg || 'Student is looking away from the screen.');
+                }
+              } else {
+                violationStartRef.current = null;
+                pausedTriggeredRef.current = false;
               }
             }
           }
@@ -287,6 +321,11 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
     };
   }, [cameraActive, enabled, userName, userEmail]);
 
+  const resumeProctor = () => {
+    violationStartRef.current = null;
+    pausedTriggeredRef.current = false;
+  };
+
   return {
     modelsLoaded,
     stream,
@@ -297,5 +336,6 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
     startCamera,
     stopCamera,
     phoneDetected,
+    resumeProctor,
   };
 };

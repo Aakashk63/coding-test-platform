@@ -25,6 +25,7 @@ const proctoringLogSchema = new mongoose.Schema(
             'AUTO_SUBMITTED',
             'LOOKING_DOWN',
             'LOOKING_AWAY',
+            'SUSPICIOUS_LOOKING',
           ],
           required: true,
         },

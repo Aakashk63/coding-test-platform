@@ -14,7 +14,8 @@ import {
   AlertTriangle, 
   CheckCircle,
   HelpCircle,
-  FileCode
+  FileCode,
+  Lock
 } from 'lucide-react';
 
 export default function StudentExam() {
@@ -52,6 +53,7 @@ export default function StudentExam() {
   // Notification Modals
   const [notification, setNotification] = useState(null); // { type, message }
   const [autoSubmitted, setAutoSubmitted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const activeQuestion = questions[activeQIdx] || null;
   const currentCode = activeQuestion ? (codeMap[activeQuestion._id] || '') : '';
@@ -197,6 +199,12 @@ export default function StudentExam() {
       });
     });
 
+    // Real-time resume exam trigger from Admin monitor
+    newSocket.on('resume_exam', ({ message }) => {
+      setIsPaused(false);
+      showToast('success', message || 'Your exam access has been restored. You may continue.');
+    });
+
     return () => {
       newSocket.disconnect();
     };
@@ -222,6 +230,7 @@ export default function StudentExam() {
     modelsLoaded,
     phoneDetected,
     stream,
+    resumeProctor,
   } = useProctor({
     testId: test?._id,
     userId: user?.id,
@@ -229,7 +238,8 @@ export default function StudentExam() {
     userEmail: user?.email,
     socket,
     onViolationTriggered: handleViolationAlert,
-    enabled: test !== null && !autoSubmitted,
+    onExamPaused: () => setIsPaused(true),
+    enabled: test !== null && !autoSubmitted && !isPaused,
   });
 
   // Connect stream to video element when it mounts
@@ -238,6 +248,15 @@ export default function StudentExam() {
       videoRef.current.srcObject = stream;
     }
   }, [stream, cameraActive]);
+
+  // Resume proctoring loop internally when suspension is lifted
+  useEffect(() => {
+    if (!isPaused && test) {
+      if (typeof resumeProctor === 'function') {
+        resumeProctor();
+      }
+    }
+  }, [isPaused, test]);
 
   // Start camera automatically on load when test object is initialized
   useEffect(() => {
@@ -439,6 +458,22 @@ export default function StudentExam() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden select-none">
+      {isPaused && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col justify-center items-center z-50 p-6 text-center animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-lg shadow-2xl space-y-4">
+            <div className="inline-flex items-center justify-center p-3 bg-rose-500/10 text-rose-400 rounded-2xl border border-rose-500/20 mb-2">
+              <Lock size={32} className="animate-pulse" />
+            </div>
+            <h2 className="text-xl font-black text-slate-100 tracking-tight">Assessment Suspended</h2>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Your exam access has been temporarily suspended by the proctoring system due to a prolonged suspicious head posture or gaze violation.
+            </p>
+            <p className="text-xs text-rose-400 font-medium font-mono">
+              Please contact the administrator to request continuation.
+            </p>
+          </div>
+        </div>
+      )}
       
       {/* Top Navbar */}
       <header className="h-16 border-b border-slate-900 flex items-center justify-between px-6 bg-slate-950/60 backdrop-blur shrink-0 z-40">

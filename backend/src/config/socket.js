@@ -72,6 +72,33 @@ export const initSocket = (server) => {
       });
     });
 
+    // Handle student suspends exam lobby due to suspicious gaze posture
+    socket.on('pause_candidate_exam', ({ testId, userId }) => {
+      const roomName = `test_${testId}`;
+      console.log(`⏸️ Student [${userId}] exam access paused for test [${testId}]`);
+      
+      // Broadcast to admin monitors in the room
+      socket.to(roomName).emit('student_paused', { userId, timestamp: new Date() });
+    });
+
+    // Handle admin continues/resumes exam access
+    socket.on('resume_candidate_exam', ({ testId, userId }) => {
+      const roomName = `test_${testId}`;
+      console.log(`▶️ Admin resumed Student [${userId}] exam access for test [${testId}]`);
+      
+      // Get student's socket ID from the active connection maps
+      const studentSocketId = activeSockets.get(userId);
+      if (studentSocketId) {
+        io.to(studentSocketId).emit('resume_exam', { 
+          testId, 
+          message: 'Your exam access has been restored by the administrator. You may continue.' 
+        });
+      }
+
+      // Broadcast update to admins
+      io.to(roomName).emit('student_resumed', { userId, timestamp: new Date() });
+    });
+
     socket.on('disconnect', () => {
       console.log(`🔌 Client disconnected: ${socket.id}`);
       

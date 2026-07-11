@@ -218,6 +218,48 @@ export default function LiveMonitoring() {
       });
     });
 
+    // Real-time listener: student paused exam access
+    socket.on('student_paused', ({ userId, timestamp }) => {
+      setCandidates((prev) => {
+        const current = prev[userId];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [userId]: {
+            ...current,
+            status: 'PAUSED',
+          },
+        };
+      });
+
+      logEvent({
+        type: 'VIOLATION',
+        message: `Candidate assessment access suspended (gaze/posture warning).`,
+        timestamp: new Date(timestamp),
+      });
+    });
+
+    // Real-time listener: student resumed exam access
+    socket.on('student_resumed', ({ userId, timestamp }) => {
+      setCandidates((prev) => {
+        const current = prev[userId];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [userId]: {
+            ...current,
+            status: 'IN_PROGRESS',
+          },
+        };
+      });
+
+      logEvent({
+        type: 'SYSTEM',
+        message: `Candidate assessment access resumed by administrator.`,
+        timestamp: new Date(timestamp),
+      });
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -304,6 +346,23 @@ export default function LiveMonitoring() {
       syncLiveStateWithDB();
     }
   }, [selectedTestId]);
+
+  const handleResumeCandidate = (userId) => {
+    if (socket && socket.connected) {
+      socket.emit('resume_candidate_exam', { testId: selectedTestId, userId });
+      setCandidates((prev) => {
+        const current = prev[userId];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [userId]: {
+            ...current,
+            status: 'IN_PROGRESS',
+          },
+        };
+      });
+    }
+  };
 
   const logEvent = (evt) => {
     setEventLogs((prev) => [evt, ...prev.slice(0, 49)]); // keep last 50 logs
@@ -465,20 +524,35 @@ export default function LiveMonitoring() {
                       )}
 
                       {/* Bottom Panel Status */}
-                      <div className="flex justify-between items-center border-t border-slate-850 pt-3">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Exam Status:</span>
-                        
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-widest ${
-                            isBlocked
-                              ? 'text-rose-400'
-                              : student.status === 'COMPLETED'
-                              ? 'text-emerald-400'
-                              : 'text-blue-400 animate-pulse'
-                          }`}
-                        >
-                          {student.status === 'AUTO_SUBMITTED' ? '🚫 Auto Submitted' : student.status === 'COMPLETED' ? '✅ Concluded' : '📝 Code Attempting'}
-                        </span>
+                      <div className="flex flex-col gap-2 border-t border-slate-850 pt-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Exam Status:</span>
+                          
+                          <span
+                            className={`text-[10px] font-bold uppercase tracking-widest ${
+                              isBlocked
+                                ? 'text-rose-400'
+                                : student.status === 'PAUSED'
+                                ? 'text-rose-500 font-black animate-pulse'
+                                : student.status === 'COMPLETED'
+                                ? 'text-emerald-400'
+                                : 'text-blue-400 animate-pulse'
+                            }`}
+                          >
+                            {student.status === 'AUTO_SUBMITTED' ? '🚫 Auto Submitted' : 
+                             student.status === 'PAUSED' ? '⚠️ Suspended' :
+                             student.status === 'COMPLETED' ? '✅ Concluded' : '📝 Code Attempting'}
+                          </span>
+                        </div>
+
+                        {student.status === 'PAUSED' && (
+                          <button
+                            onClick={() => handleResumeCandidate(student.userId)}
+                            className="w-full mt-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-[10px] uppercase tracking-widest py-1.5 rounded-lg border border-blue-500/30 transition flex items-center justify-center gap-1 shadow-md shrink-0 cursor-pointer"
+                          >
+                            <span>Resume Candidate Exam</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
