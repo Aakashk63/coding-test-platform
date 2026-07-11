@@ -4,7 +4,7 @@ import * as blazeface from '@tensorflow-models/blazeface';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { API_URL } from '../config';
 
-export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabled = true }) => {
+export const useProctor = ({ testId, userId, userName, userEmail, socket, onViolationTriggered, enabled = true }) => {
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [stream, setStream] = useState(null);
   const [strikes, setStrikes] = useState(0);
@@ -102,6 +102,8 @@ export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabl
         userId,
         eventType,
         proof: proofText || `Violation detected: ${eventType}`,
+        name: userName,
+        email: userEmail,
       });
     }
 
@@ -148,7 +150,7 @@ export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabl
         if (objectModelRef.current) {
           const predictions = await objectModelRef.current.detect(video);
           const cellPhone = predictions.find(
-            (p) => p.class === 'cell phone' && p.score > 0.55
+            (p) => p.class === 'cell phone' && p.score > 0.42
           );
 
           if (cellPhone) {
@@ -180,6 +182,8 @@ export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabl
   useEffect(() => {
     if (!enabled || !cameraActive) return;
 
+    let blurTimeout = null;
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         triggerViolation('TAB_SWITCH', 'Student switched browser tab or minimized window.');
@@ -187,17 +191,32 @@ export const useProctor = ({ testId, userId, socket, onViolationTriggered, enabl
     };
 
     const handleWindowBlur = () => {
-      triggerViolation('WINDOW_BLUR', 'Student left the browser viewport (window unfocused).');
+      if (blurTimeout) clearTimeout(blurTimeout);
+      blurTimeout = setTimeout(() => {
+        if (!document.hasFocus() && enabled && cameraActive) {
+          triggerViolation('WINDOW_BLUR', 'Student left the browser viewport (window unfocused for more than 3s).');
+        }
+      }, 3000);
+    };
+
+    const handleWindowFocus = () => {
+      if (blurTimeout) {
+        clearTimeout(blurTimeout);
+        blurTimeout = null;
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
+      if (blurTimeout) clearTimeout(blurTimeout);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
     };
-  }, [cameraActive, enabled]);
+  }, [cameraActive, enabled, userName, userEmail]);
 
   return {
     modelsLoaded,

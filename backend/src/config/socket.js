@@ -35,15 +35,17 @@ export const initSocket = (server) => {
     });
 
     // Handle student reporting proctoring violation event
-    socket.on('report_violation', ({ testId, userId, eventType, proof }) => {
+    socket.on('report_violation', ({ testId, userId, eventType, proof, name, email }) => {
       const roomName = `test_${testId}`;
-      console.log(`⚠️ Violation [${eventType}] by student ${userId} in test ${testId}`);
+      console.log(`⚠️ Violation [${eventType}] by student ${userId} (${name}) in test ${testId}`);
 
       // Broadcast the violation details to admin monitors in the test room
       socket.to(roomName).emit('student_violation', {
         userId,
         eventType,
         proof,
+        name,
+        email,
         timestamp: new Date(),
       });
     });

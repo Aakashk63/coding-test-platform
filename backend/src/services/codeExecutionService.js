@@ -251,7 +251,39 @@ export const runExecution = async (language, code, driverCode, testCases) => {
       // 3. Evaluation logic (Trim and sanitize outputs)
       const cleanExpected = tc.expectedOutput.replace(/\r\n/g, '\n').trim();
       const cleanActual = execRes.stdout.replace(/\r\n/g, '\n').trim();
-      const passed = execRes.status === 'Success' && cleanExpected === cleanActual;
+      
+      let passed = false;
+      if (execRes.status === 'Success') {
+        if (cleanExpected === cleanActual) {
+          passed = true;
+        } else {
+          // Fallback 1: Try comparing parsed JSON objects
+          try {
+            const parsedExpected = JSON.parse(cleanExpected);
+            const parsedActual = JSON.parse(cleanActual);
+            
+            const normalizeJSON = (obj) => {
+              if (obj === null || typeof obj !== 'object') return obj;
+              if (Array.isArray(obj)) {
+                return obj.map(normalizeJSON);
+              }
+              const sortedKeys = Object.keys(obj).sort();
+              const result = {};
+              sortedKeys.forEach(key => {
+                result[key] = normalizeJSON(obj[key]);
+              });
+              return result;
+            };
+            
+            passed = JSON.stringify(normalizeJSON(parsedExpected)) === JSON.stringify(normalizeJSON(parsedActual));
+          } catch (e) {
+            // Fallback 2: Strip all spaces and spacing tabs (great for array outputs e.g. [0, 1] vs [0,1])
+            const noSpaceExpected = cleanExpected.replace(/\s+/g, '');
+            const noSpaceActual = cleanActual.replace(/\s+/g, '');
+            passed = noSpaceExpected === noSpaceActual;
+          }
+        }
+      }
 
       results.push({
         testCaseId: tc._id || i,

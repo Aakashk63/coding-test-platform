@@ -222,6 +222,8 @@ export default function StudentExam() {
   } = useProctor({
     testId: test?._id,
     userId: user?.id,
+    userName: user?.name,
+    userEmail: user?.email,
     socket,
     onViolationTriggered: handleViolationAlert,
     enabled: test !== null && !autoSubmitted,
