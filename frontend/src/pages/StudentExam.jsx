@@ -221,6 +221,7 @@ export default function StudentExam() {
     strikes,
     modelsLoaded,
     phoneDetected,
+    stream,
   } = useProctor({
     testId: test?._id,
     userId: user?.id,
@@ -230,6 +231,13 @@ export default function StudentExam() {
     onViolationTriggered: handleViolationAlert,
     enabled: test !== null && !autoSubmitted,
   });
+
+  // Connect stream to video element when it mounts
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream, cameraActive]);
 
   // Start camera automatically on load when test object is initialized
   useEffect(() => {

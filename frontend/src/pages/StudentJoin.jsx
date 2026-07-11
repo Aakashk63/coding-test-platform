@@ -85,6 +85,13 @@ export default function StudentJoin() {
     navigate(`/exam/${testDetails.testId}`);
   };
 
+  // Connect stream to video element when it mounts
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream, cameraActive]);
+
   // Clean up stream on unmount
   useEffect(() => {
     return () => {
