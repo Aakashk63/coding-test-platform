@@ -317,10 +317,10 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
             if (!pausedTriggeredRef.current) {
               pausedTriggeredRef.current = true;
               if (socketRef.current && socketRef.current.connected) {
-                socketRef.current.emit('pause_candidate_exam', { testId, userId });
+                socketRef.current.emit('pause_candidate_exam', { testId, userId, reason: eventType });
               }
               if (onExamPausedRef.current) {
-                onExamPausedRef.current();
+                onExamPausedRef.current(eventType);
               }
             }
           } else {

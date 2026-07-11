@@ -61,14 +61,11 @@ export const recordViolation = async (req, res) => {
       timestamp: new Date(),
     });
 
-    // 4. Auto-submission rule: dynamic strikes limit or NO_FACE missing
+    // 4. Auto-submission rule: dynamic strikes limit
     const STRIKE_LIMIT = test.maxStrikes !== undefined ? Number(test.maxStrikes) : 3;
-    const isNoFace = eventType === 'NO_FACE';
 
-    if (strikes >= STRIKE_LIMIT || isNoFace) {
-      const reasonMsg = isNoFace 
-        ? 'automatically submitted because no face was detected in your webcam feed'
-        : `automatically submitted due to reaching the limit of ${STRIKE_LIMIT} proctoring violations`;
+    if (strikes >= STRIKE_LIMIT) {
+      const reasonMsg = `automatically submitted due to reaching the limit of ${STRIKE_LIMIT} proctoring violations`;
 
       console.log(`🚨 Student ${userId} auto-submission triggered. Reason: ${reasonMsg}`);
 
