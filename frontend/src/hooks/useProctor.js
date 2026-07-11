@@ -251,17 +251,33 @@ export const useProctor = ({ testId, userId, userName, userEmail, socket, onViol
           }
         }
 
-        // --- 2. Object Detection (Cell Phone) ---
+        // --- 2. Object Detection (Cell Phone / Camera) ---
         if (objectModelRef.current) {
           const predictions = await objectModelRef.current.detect(video);
           const cellPhone = predictions.find(
             (p) => (p.class === 'cell phone' || p.class === 'remote') && p.score > 0.35
           );
+          const cameraDevice = predictions.find(
+            (p) => p.class === 'camera' && p.score > 0.35
+          );
 
-          if (cellPhone) {
+          if (cellPhone || cameraDevice) {
             setPhoneDetected(true);
             const proofImg = captureSnapshot();
-            await triggerViolation('PHONE_DETECTED', proofImg || `Mobile phone detected.`);
+            const eventType = cameraDevice ? 'CAMERA_DETECTED' : 'PHONE_DETECTED';
+            const label = cameraDevice ? 'Camera device' : 'Mobile phone';
+            
+            await triggerViolation(eventType, proofImg || `${label} detected.`);
+
+            if (!pausedTriggeredRef.current) {
+              pausedTriggeredRef.current = true;
+              if (socketRef.current && socketRef.current.connected) {
+                socketRef.current.emit('pause_candidate_exam', { testId, userId });
+              }
+              if (onExamPausedRef.current) {
+                onExamPausedRef.current();
+              }
+            }
           } else {
             setPhoneDetected(false);
           }

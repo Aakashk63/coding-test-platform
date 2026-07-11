@@ -15,7 +15,8 @@ import {
   CheckCircle,
   HelpCircle,
   FileCode,
-  Lock
+  Lock,
+  Maximize
 } from 'lucide-react';
 
 export default function StudentExam() {
@@ -54,6 +55,7 @@ export default function StudentExam() {
   const [notification, setNotification] = useState(null); // { type, message }
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(true);
 
   const activeQuestion = questions[activeQIdx] || null;
   const currentCode = activeQuestion ? (codeMap[activeQuestion._id] || '') : '';
@@ -277,6 +279,41 @@ export default function StudentExam() {
     return () => stopCamera();
   }, [test]);
 
+  // Handle fullscreen state updates
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const activeFs = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      setIsFullScreen(activeFs);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  const handleReEnterFullscreen = () => {
+    const el = document.documentElement;
+    const rfs = el.requestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (rfs) {
+      rfs.call(el)
+        .then(() => setIsFullScreen(true))
+        .catch((err) => console.warn('Failed to re-enter fullscreen:', err));
+    }
+  };
+
   // 4. Timer ticking system
   useEffect(() => {
     if (timeLeft <= 0 || autoSubmitted || !test) return;
@@ -477,6 +514,26 @@ export default function StudentExam() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden select-none">
+      {!isFullScreen && !autoSubmitted && !isPaused && (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur flex flex-col justify-center items-center z-50 p-6 text-center animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md shadow-2xl space-y-4">
+            <div className="inline-flex items-center justify-center p-3 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20 mb-2">
+              <Maximize size={32} className="animate-pulse" />
+            </div>
+            <h2 className="text-xl font-black text-slate-100 tracking-tight">Fullscreen Required</h2>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              To attend this assessment, you must remain in full-screen mode. Exiting fullscreen blocks your exam progress.
+            </p>
+            <button
+              onClick={handleReEnterFullscreen}
+              className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest py-3 rounded-lg transition shadow-md cursor-pointer"
+            >
+              Re-enter Fullscreen
+            </button>
+          </div>
+        </div>
+      )}
+      
       {isPaused && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col justify-center items-center z-50 p-6 text-center animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-lg shadow-2xl space-y-4">
