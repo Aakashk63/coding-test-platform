@@ -76,31 +76,33 @@ export default function LiveMonitoring() {
     });
 
     // Event listener: Student joined
-    socket.on('student_joined', ({ userId, timestamp }) => {
-      // Fetch user profile from DB or initialize
+    socket.on('student_joined', ({ userId, name, email, timestamp }) => {
       setCandidates((prev) => {
-        if (prev[userId]) return prev;
+        const current = prev[userId] || {
+          userId,
+          name: name || 'Student User',
+          email: email || '',
+          strikes: 0,
+          cameraActive: true,
+          status: 'IN_PROGRESS',
+          violations: [],
+        };
         return {
           ...prev,
           [userId]: {
-            userId,
-            name: 'Candidate Joining...',
-            email: '',
-            strikes: 0,
+            ...current,
+            name: name || current.name,
+            email: email || current.email,
             cameraActive: true,
-            status: 'IN_PROGRESS',
-            violations: [],
+            status: current.status === 'COMPLETED' || current.status === 'AUTO_SUBMITTED' ? current.status : 'IN_PROGRESS',
             lastActive: new Date(timestamp),
           },
         };
       });
 
-      // Quick fetch to update profile info
-      fetchUserProfile(userId);
-
       logEvent({
         type: 'JOIN',
-        message: 'A candidate has entered the exam lobby.',
+        message: `${name || 'Student User'} has entered the exam lobby.`,
         timestamp: new Date(timestamp),
       });
     });
@@ -246,7 +248,24 @@ export default function LiveMonitoring() {
         };
       }
 
-      setCandidates(loadedCandidates);
+      setCandidates((prev) => {
+        const merged = { ...prev };
+        for (const [studentId, dbCand] of Object.entries(loadedCandidates)) {
+          const current = prev[studentId] || {};
+          merged[studentId] = {
+            ...dbCand,
+            cameraActive: current.cameraActive !== undefined ? current.cameraActive : dbCand.cameraActive,
+            status: current.status === 'IN_PROGRESS' ? 'IN_PROGRESS' : dbCand.status,
+            violations: [
+              ...dbCand.violations,
+              ...(current.violations || []).filter(cv => 
+                !dbCand.violations.some(dv => dv.eventType === cv.eventType && Math.abs(new Date(dv.timestamp) - new Date(cv.timestamp)) < 2000)
+              )
+            ]
+          };
+        }
+        return merged;
+      });
     } catch (e) {
       console.error('Failed to sync initial monitor state:', e);
     }

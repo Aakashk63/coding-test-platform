@@ -135,6 +135,8 @@ export default function StudentExam() {
         testId: test._id,
         role: 'STUDENT',
         userId: user.id,
+        name: user.name,
+        email: user.email,
       });
     });
 

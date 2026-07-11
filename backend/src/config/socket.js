@@ -16,10 +16,10 @@ export const initSocket = (server) => {
     console.log(`🔌 Client connected: ${socket.id}`);
 
     // Join room for a specific test (for admins to monitor, or students to receive timer updates)
-    socket.on('join_test_room', ({ testId, role, userId }) => {
+    socket.on('join_test_room', ({ testId, role, userId, name, email }) => {
       const roomName = `test_${testId}`;
       socket.join(roomName);
-      console.log(`👤 User ${userId} (${role}) joined room ${roomName}`);
+      console.log(`🔌 User [${userId}] (${name}) joined room [${roomName}] as [${role}]`);
 
       if (role === 'STUDENT') {
         examSessions.set(`${testId}:${userId}`, socket.id);
@@ -28,6 +28,8 @@ export const initSocket = (server) => {
         // Notify admins in the room
         socket.to(roomName).emit('student_joined', {
           userId,
+          name,
+          email,
           socketId: socket.id,
           timestamp: new Date(),
         });
