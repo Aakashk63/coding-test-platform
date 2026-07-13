@@ -38,6 +38,10 @@ app.use(express.json({ limit: '10mb' })); // Support base64 image proof sizes
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health Check
+app.get('/', (req, res) => {
+  res.status(200).send("Server is running");
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', service: 'codeguard-backend-api' });
 });
